@@ -8,6 +8,7 @@ import { ShopTag } from '../components/Badges'
 export default function ShopStatus() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
+  const [sortDir, setSortDir] = useState('oldest')
 
   useEffect(() => { load() }, [])
 
@@ -37,15 +38,27 @@ export default function ShopStatus() {
 
   if (loading) return <p className="text-muted">Loading…</p>
 
+  const sorted = [...rows].sort((a, b) => {
+    const da = a.date_sent_to_shop ? new Date(a.date_sent_to_shop).getTime() : 0
+    const db = b.date_sent_to_shop ? new Date(b.date_sent_to_shop).getTime() : 0
+    return sortDir === 'oldest' ? da - db : db - da
+  })
+
   return (
     <div>
-      <p className="text-sm text-muted mb-16">Everything currently sitting at a shop or mechanic, oldest first.</p>
+      <div className="flex justify-between items-center mb-16" style={{ flexWrap: 'wrap', gap: 10 }}>
+        <p className="text-sm text-muted">Everything currently sitting at a shop or mechanic.</p>
+        <div className="sort-toggle">
+          <button className={sortDir === 'oldest' ? 'active' : ''} onClick={() => setSortDir('oldest')}>Oldest First</button>
+          <button className={sortDir === 'newest' ? 'active' : ''} onClick={() => setSortDir('newest')}>Newest First</button>
+        </div>
+      </div>
 
       {rows.length === 0 ? (
         <EmptyState icon={<ClipboardCheck size={36} />} title="Nothing out right now" sub="All equipment is in the yard or out on routes." />
       ) : (
         <div className="card-list">
-          {rows.map(r => {
+          {sorted.map(r => {
             const days = daysOut(r)
             return (
               <div className="card card-pad" key={r.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, justifyContent: 'space-between' }}>
@@ -56,7 +69,7 @@ export default function ShopStatus() {
                   </div>
                   <p className="text-sm" style={{ fontWeight: 700 }}>{r.repair_type} — {r.shop_name || 'Shop not specified'}</p>
                   <p className="text-xs text-muted mt-6">Crew {r.crew || '—'} · Sent {fmtDate(r.date_sent_to_shop)}{r.eta ? ` · ETA ${fmtDate(r.eta)}` : ''}</p>
-                  {r.notes && <p className="text-xs text-muted mt-6">📝 {r.notes}</p>}
+                  {r.notes && <p className="text-xs text-muted mt-6">Note: {r.notes}</p>}
                 </div>
                 <div className="flex items-center gap-10">
                   {days !== null && (

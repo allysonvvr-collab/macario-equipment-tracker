@@ -47,6 +47,11 @@ export default function Checkout() {
 
   const visible = rows.filter(r => showReturned || !r.date_returned)
 
+  function daysOut(r) {
+    if (r.date_returned) return null
+    return Math.floor((Date.now() - new Date(r.date_out).getTime()) / 86400000)
+  }
+
   return (
     <div>
       <div className="filters-bar">
@@ -73,7 +78,13 @@ export default function Checkout() {
                     <td>{r.type} #{r.serial_last4 || '—'}</td>
                     <td>{r.reason || '—'}</td>
                     <td>{r.okd_by || '—'}</td>
-                    <td>{r.date_returned ? fmtDate(r.date_returned) : <span className="badge badge-progress">Out</span>}</td>
+                    <td>
+                      {r.date_returned ? fmtDate(r.date_returned) : (
+                        daysOut(r) > 14
+                          ? <span className="badge badge-overdue">Overdue · {daysOut(r)}d</span>
+                          : <span className="badge badge-progress">Out · {daysOut(r)}d</span>
+                      )}
+                    </td>
                     <td>{!r.date_returned && <button className="btn btn-ghost btn-sm" onClick={() => markReturned(r)}><CheckCircle2 size={13} /> Returned</button>}</td>
                   </tr>
                 ))}
@@ -83,7 +94,14 @@ export default function Checkout() {
           <div className="card-list show-mobile">
             {visible.map(r => (
               <div className="row-card" key={r.id}>
-                <div className="row-card-top"><b>{r.borrower}</b>{r.date_returned ? <span className="badge badge-stocked">Returned</span> : <span className="badge badge-progress">Out</span>}</div>
+                <div className="row-card-top">
+                  <b>{r.borrower}</b>
+                  {r.date_returned ? <span className="badge badge-stocked">Returned</span> : (
+                    daysOut(r) > 14
+                      ? <span className="badge badge-overdue">Overdue · {daysOut(r)}d</span>
+                      : <span className="badge badge-progress">Out · {daysOut(r)}d</span>
+                  )}
+                </div>
                 <div className="row-card-line"><span>Item</span><b>{r.type} #{r.serial_last4 || '—'}</b></div>
                 <div className="row-card-line"><span>Date Out</span><b>{fmtDate(r.date_out)}</b></div>
                 <div className="row-card-line"><span>Reason</span><b>{r.reason || '—'}</b></div>

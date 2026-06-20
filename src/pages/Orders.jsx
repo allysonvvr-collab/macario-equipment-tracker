@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Package2, CheckCircle2 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { fmtDate, money, todayISO, ORDER_CATEGORIES, ORDER_STATUSES } from '../lib/helpers'
-import { OrderStatusBadge, EmptyState } from '../components/Badges'
+import { EmptyState } from '../components/Badges'
 import { Modal } from '../components/Modal'
 import { useAuth } from '../context/AuthContext'
 
@@ -14,6 +15,7 @@ const BLANK = {
 
 export default function Orders() {
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('FWC Chemical')
@@ -23,6 +25,14 @@ export default function Orders() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    if (searchParams.get('new')) {
+      openAdd()
+      setSearchParams({}, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   async function load() {
     setLoading(true)
@@ -81,57 +91,39 @@ export default function Orders() {
       {loading ? <p className="text-muted">Loading…</p> : filtered.length === 0 ? (
         <EmptyState icon={<Package2 size={36} />} title="No orders yet" sub="Log an order to start tracking it." />
       ) : (
-        <>
-          <div className="table-wrap hide-mobile">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date Ordered</th><th>Vendor</th><th>Product</th>
-                  {tab === 'FWC Chemical' ? <><th>Qty</th><th>Size</th></> : <><th>Order #</th><th>Cost</th></>}
-                  <th>Expected</th><th>Received</th><th>Status</th><th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(r => (
-                  <tr key={r.id} className="clickable" onClick={() => openEdit(r)}>
-                    <td>{fmtDate(r.date_ordered)}</td>
-                    <td>{r.vendor || '—'}</td>
-                    <td className="cell-strong">{r.product}</td>
+        <div className="kanban-board">
+          {ORDER_STATUSES.map(status => {
+            const colRows = filtered.filter(r => r.status === status)
+            return (
+              <div className="kanban-column" key={status}>
+                <div className="kanban-column-header">
+                  <span>{status}</span>
+                  <span className="group-count">{colRows.length}</span>
+                </div>
+                {colRows.length === 0 ? (
+                  <div className="kanban-empty">Nothing here</div>
+                ) : colRows.map(r => (
+                  <div className="row-card" key={r.id} onClick={() => openEdit(r)} style={{ cursor: 'pointer' }}>
+                    <div className="row-card-top"><b>{r.product}</b></div>
+                    <div className="row-card-line"><span>Vendor</span><b>{r.vendor || '—'}</b></div>
+                    <div className="row-card-line"><span>Ordered</span><b>{fmtDate(r.date_ordered)}</b></div>
                     {tab === 'FWC Chemical' ? (
-                      <><td>{r.qty ?? '—'}</td><td>{r.unit_size || '—'}</td></>
+                      <div className="row-card-line"><span>Qty</span><b>{r.qty ?? '—'} {r.unit_size || ''}</b></div>
                     ) : (
-                      <><td className="cell-muted">{r.order_number || '—'}</td><td>{money(r.cost)}</td></>
+                      <div className="row-card-line"><span>Cost</span><b>{money(r.cost)}</b></div>
                     )}
-                    <td className="cell-muted">{fmtDate(r.expected_date)}</td>
-                    <td className="cell-muted">{r.date_received ? fmtDate(r.date_received) : '—'}</td>
-                    <td><OrderStatusBadge status={r.status} /></td>
-                    <td>{r.status !== 'Received' && (
-                      <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); markReceived(r) }}><CheckCircle2 size={13} /> Received</button>
-                    )}</td>
-                  </tr>
+                    {r.expected_date && <div className="row-card-line"><span>Expected</span><b>{fmtDate(r.expected_date)}</b></div>}
+                    {status !== 'Received' && (
+                      <button className="btn btn-ghost btn-sm w-full mt-10" onClick={(e) => { e.stopPropagation(); markReceived(r) }}>
+                        <CheckCircle2 size={13} /> Mark Received
+                      </button>
+                    )}
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="card-list show-mobile">
-            {filtered.map(r => (
-              <div className="row-card" key={r.id} onClick={() => openEdit(r)}>
-                <div className="row-card-top"><b>{r.product}</b><OrderStatusBadge status={r.status} /></div>
-                <div className="row-card-line"><span>Vendor</span><b>{r.vendor || '—'}</b></div>
-                <div className="row-card-line"><span>Ordered</span><b>{fmtDate(r.date_ordered)}</b></div>
-                {tab === 'FWC Chemical' ? (
-                  <div className="row-card-line"><span>Qty</span><b>{r.qty ?? '—'} {r.unit_size || ''}</b></div>
-                ) : (
-                  <div className="row-card-line"><span>Cost</span><b>{money(r.cost)}</b></div>
-                )}
-                {r.status !== 'Received' && (
-                  <button className="btn btn-ghost btn-sm w-full mt-10" onClick={(e) => { e.stopPropagation(); markReceived(r) }}>Mark Received</button>
-                )}
               </div>
-            ))}
-          </div>
-        </>
+            )
+          })}
+        </div>
       )}
 
       {modalOpen && (

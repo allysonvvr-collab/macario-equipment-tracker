@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, Tractor } from 'lucide-react'
+import { Plus, Search, Tractor, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { EQUIPMENT_TYPES } from '../lib/helpers'
 import { EquipmentStatusBadge, EmptyState } from '../components/Badges'
@@ -10,6 +10,28 @@ const BLANK = {
   type: 'Mower', serial_last4: '', serial_full: '', make_model: '',
   division: 'Mowing', crew_assigned: '', status: 'Active', notes: '',
 }
+
+// Keep named crews first, alphabetically; push the catch-all buckets to the end.
+const CREW_ORDER_TAIL = ['Backup Pool', 'Parts Only']
+function compareCrew(a, b) {
+  const aTail = CREW_ORDER_TAIL.indexOf(a)
+  const bTail = CREW_ORDER_TAIL.indexOf(b)
+  if (aTail !== -1 || bTail !== -1) {
+    if (aTail === -1) return -1
+    if (bTail === -1) return 1
+    return aTail - bTail
+  }
+  return a.localeCompare(b)
+}
+
+const COLUMNS = [
+  { key: 'type', label: 'Type' },
+  { key: 'serial_last4', label: 'Serial' },
+  { key: 'make_model', label: 'Make / Model' },
+  { key: 'division', label: 'Division' },
+  { key: 'status', label: 'Status' },
+  { key: 'current_hours', label: 'Hours' },
+]
 
 export default function Equipment() {
   const navigate = useNavigate()
@@ -22,6 +44,9 @@ export default function Equipment() {
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState(BLANK)
   const [saving, setSaving] = useState(false)
+  const [sortKey, setSortKey] = useState('type')
+  const [sortDir, setSortDir] = useState('asc')
+  const [collapsed, setCollapsed] = useState(new Set())
 
   useEffect(() => { load() }, [])
 
@@ -35,17 +60,48 @@ export default function Equipment() {
   const divisions = useMemo(() => ['All', ...new Set(rows.map(r => r.division).filter(Boolean))], [rows])
   const crews = useMemo(() => ['All', ...new Set(rows.map(r => r.crew_assigned).filter(Boolean))], [rows])
 
-  const filtered = rows.filter(r => {
-    if (divisionFilter !== 'All' && r.division !== divisionFilter) return false
-    if (crewFilter !== 'All' && r.crew_assigned !== crewFilter) return false
-    if (statusFilter !== 'All' && r.status !== statusFilter) return false
-    if (search) {
-      const s = search.toLowerCase()
-      const hay = `${r.type} ${r.serial_last4} ${r.make_model} ${r.crew_assigned}`.toLowerCase()
-      if (!hay.includes(s)) return false
+  function handleSort(key) {
+    if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortKey(key); setSortDir('asc') }
+  }
+
+  function toggleGroup(crew) {
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      next.has(crew) ? next.delete(crew) : next.add(crew)
+      return next
+    })
+  }
+
+  const filteredSorted = rows
+    .filter(r => {
+      if (divisionFilter !== 'All' && r.division !== divisionFilter) return false
+      if (crewFilter !== 'All' && r.crew_assigned !== crewFilter) return false
+      if (statusFilter !== 'All' && r.status !== statusFilter) return false
+      if (search) {
+        const s = search.toLowerCase()
+        const hay = `${r.type} ${r.serial_last4} ${r.make_model} ${r.crew_assigned}`.toLowerCase()
+        if (!hay.includes(s)) return false
+      }
+      return true
+    })
+    .sort((a, b) => {
+      const av = a[sortKey] ?? ''
+      const bv = b[sortKey] ?? ''
+      const cmp = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv))
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+
+  // Group by crew (after sorting, so order within each group follows the sort).
+  const groups = useMemo(() => {
+    const map = new Map()
+    for (const r of filteredSorted) {
+      const key = r.crew_assigned || 'Unassigned'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(r)
     }
-    return true
-  })
+    return [...map.entries()].sort(([a], [b]) => compareCrew(a, b))
+  }, [filteredSorted])
 
   function openAdd() { setForm(BLANK); setModalOpen(true) }
 
@@ -56,6 +112,18 @@ export default function Equipment() {
     setSaving(false)
     setModalOpen(false)
     load()
+  }
+
+  function SortHeader({ col }) {
+    const active = sortKey === col.key
+    return (
+      <th className={`sortable ${active ? 'active' : ''}`} onClick={() => handleSort(col.key)}>
+        {col.label}
+        <span className="sort-arrow">
+          {active ? (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : <ChevronDown size={12} />}
+        </span>
+      </th>
+    )
   }
 
   return (
@@ -80,47 +148,58 @@ export default function Equipment() {
 
       {loading ? (
         <p className="text-muted">Loading…</p>
-      ) : filtered.length === 0 ? (
+      ) : filteredSorted.length === 0 ? (
         <EmptyState icon={<Tractor size={36} />} title="No equipment found" sub="Try adjusting filters, or add a new asset." />
       ) : (
-        <>
-          <div className="table-wrap hide-mobile">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Type</th><th>Serial</th><th>Make / Model</th><th>Division</th><th>Crew</th><th>Status</th><th>Hours</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(r => (
-                  <tr key={r.id} className="clickable" onClick={() => navigate(`/equipment/${r.id}`)}>
-                    <td className="cell-strong">{r.type}</td>
-                    <td>#{r.serial_last4 || '—'}</td>
-                    <td>{r.make_model || '—'}</td>
-                    <td>{r.division}</td>
-                    <td>{r.crew_assigned || '—'}</td>
-                    <td><EquipmentStatusBadge status={r.status} /></td>
-                    <td className="cell-muted">{r.current_hours ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="card-list show-mobile">
-            {filtered.map(r => (
-              <div className="row-card" key={r.id} onClick={() => navigate(`/equipment/${r.id}`)}>
-                <div className="row-card-top">
-                  <b>{r.type} #{r.serial_last4 || '—'}</b>
-                  <EquipmentStatusBadge status={r.status} />
-                </div>
-                <div className="row-card-line"><span>Make/Model</span><b>{r.make_model || '—'}</b></div>
-                <div className="row-card-line"><span>Crew</span><b>{r.crew_assigned || '—'}</b></div>
-                <div className="row-card-line"><span>Division</span><b>{r.division}</b></div>
+        groups.map(([crew, items]) => {
+          const isCollapsed = collapsed.has(crew)
+          return (
+            <div key={crew}>
+              <div className={`group-header ${isCollapsed ? 'collapsed' : ''}`} onClick={() => toggleGroup(crew)}>
+                <ChevronDown size={15} className="chev" />
+                {crew}
+                <span className="group-count">{items.length} item{items.length === 1 ? '' : 's'}</span>
               </div>
-            ))}
-          </div>
-        </>
+
+              {!isCollapsed && (
+                <div className="group-body">
+                  <div className="table-wrap hide-mobile">
+                    <table className="data-table">
+                      <thead>
+                        <tr>{COLUMNS.map(col => <SortHeader key={col.key} col={col} />)}</tr>
+                      </thead>
+                      <tbody>
+                        {items.map(r => (
+                          <tr key={r.id} className="clickable" onClick={() => navigate(`/equipment/${r.id}`)}>
+                            <td className="cell-strong">{r.type}</td>
+                            <td>#{r.serial_last4 || '—'}</td>
+                            <td>{r.make_model || '—'}</td>
+                            <td>{r.division}</td>
+                            <td><EquipmentStatusBadge status={r.status} /></td>
+                            <td className="cell-muted">{r.current_hours ?? '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="card-list show-mobile">
+                    {items.map(r => (
+                      <div className="row-card" key={r.id} onClick={() => navigate(`/equipment/${r.id}`)}>
+                        <div className="row-card-top">
+                          <b>{r.type} #{r.serial_last4 || '—'}</b>
+                          <EquipmentStatusBadge status={r.status} />
+                        </div>
+                        <div className="row-card-line"><span>Make/Model</span><b>{r.make_model || '—'}</b></div>
+                        <div className="row-card-line"><span>Division</span><b>{r.division}</b></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })
       )}
 
       {modalOpen && (

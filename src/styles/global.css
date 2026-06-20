@@ -323,7 +323,70 @@ textarea { resize: vertical; min-height: 64px; }
 
 .spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* ---------- Quick actions (Dashboard) ---------- */
+.quick-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+.quick-action-btn {
+  display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+  border-radius: var(--radius); border: 1px solid var(--gray-200); background: white;
+  font-weight: 700; font-size: .85rem; color: var(--green-800); cursor: pointer; box-shadow: var(--shadow-sm);
+}
+.quick-action-btn:hover { border-color: var(--green-600); background: var(--green-100); }
+.quick-action-btn svg { color: var(--gold-dark); }
 
+/* ---------- Collapsible groups (Equipment by crew) ---------- */
+.group-header {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-top: 14px;
+  background: var(--green-100); border-radius: var(--radius-sm); cursor: pointer; font-weight: 800;
+  color: var(--green-900); font-size: .88rem; user-select: none;
+}
+.group-header:first-child { margin-top: 0; }
+.group-header .chev { transition: transform .15s; color: var(--green-700); }
+.group-header.collapsed .chev { transform: rotate(-90deg); }
+.group-count { font-weight: 700; color: var(--gray-500); font-size: .78rem; }
+.group-body { margin-top: 6px; margin-bottom: 4px; }
+
+/* ---------- Sortable table headers ---------- */
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--green-700); }
+th.sortable .sort-arrow { margin-left: 4px; opacity: .5; }
+th.sortable.active .sort-arrow { opacity: 1; color: var(--green-700); }
+
+/* ---------- Summary banner (Inventory) ---------- */
+.summary-banner {
+  display: flex; gap: 18px; align-items: center; padding: 10px 16px; border-radius: var(--radius);
+  background: var(--gray-50); border: 1px solid var(--gray-200); margin-bottom: 14px; font-size: .82rem; flex-wrap: wrap;
+}
+.summary-banner b { font-weight: 800; }
+.summary-banner .sb-out b { color: var(--red); }
+.summary-banner .sb-low b { color: var(--amber); }
+.summary-banner .sb-ok b { color: var(--green-ok); }
+
+/* ---------- Sort toggle pill pair ---------- */
+.sort-toggle { display: inline-flex; background: var(--gray-100); border-radius: 999px; padding: 3px; }
+.sort-toggle button {
+  padding: 6px 13px; border-radius: 999px; border: none; background: none; font-weight: 700;
+  font-size: .78rem; color: var(--gray-500); cursor: pointer;
+}
+.sort-toggle button.active { background: white; color: var(--green-800); box-shadow: var(--shadow-sm); }
+
+/* ---------- Kanban columns (Orders) ---------- */
+.kanban-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 980px) { .kanban-board { grid-template-columns: 1fr; } }
+.kanban-column { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-lg); padding: 10px; min-height: 60px; }
+.kanban-column-header { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px 10px; font-weight: 800; font-size: .8rem; color: var(--gray-700); }
+.kanban-column .row-card { margin-bottom: 8px; }
+.kanban-column .row-card:last-child { margin-bottom: 0; }
+.kanban-empty { font-size: .76rem; color: var(--gray-400); text-align: center; padding: 14px 4px; }
+
+/* ---------- Overdue flag ---------- */
+.badge-overdue { background: var(--red-100); color: var(--red); }
+
+/* ---------- Section divider with label (Users page grouping) ---------- */
+.section-divider-label {
+  font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--gray-500); margin: 22px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--gray-200);
+}
+.section-divider-label:first-child { margin-top: 0; }
 /* utility */
 .flex { display: flex; }
 .flex-col { display: flex; flex-direction: column; }

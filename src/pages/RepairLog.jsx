@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, Search, Wrench } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { money, fmtDate, todayISO, calcRepairTotal, calcLaborCost, REPAIR_TYPES } from '../lib/helpers'
@@ -16,6 +17,7 @@ const BLANK = {
 
 export default function RepairLog() {
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [rows, setRows] = useState([])
   const [equipment, setEquipment] = useState([])
   const [shops, setShops] = useState([])
@@ -29,6 +31,14 @@ export default function RepairLog() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    if (searchParams.get('new')) {
+      openAdd()
+      setSearchParams({}, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   async function load() {
     setLoading(true)
@@ -105,17 +115,21 @@ export default function RepairLog() {
 
   return (
     <div>
+      <div className="pill-tabs mb-16">
+        {['All', 'Completed', 'At Shop', 'Waiting on Parts', 'In Progress'].map(s => (
+          <button key={s} className={`pill-tab ${statusFilter === s ? 'active' : ''}`} onClick={() => setStatusFilter(s)}>{s}</button>
+        ))}
+      </div>
+      <div className="pill-tabs mb-16">
+        {['All', 'DIY', 'Shop'].map(s => (
+          <button key={s} className={`pill-tab ${diyFilter === s ? 'active' : ''}`} onClick={() => setDiyFilter(s)}>{s === 'All' ? 'DIY or Shop' : s}</button>
+        ))}
+      </div>
       <div className="filters-bar">
         <div className="search-input-wrap">
           <Search size={15} />
           <input type="text" placeholder="Search repairs…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          {['All', 'Completed', 'At Shop', 'Waiting on Parts', 'In Progress'].map(s => <option key={s} value={s}>{s === 'All' ? 'All Statuses' : s}</option>)}
-        </select>
-        <select value={diyFilter} onChange={e => setDiyFilter(e.target.value)}>
-          {['All', 'DIY', 'Shop'].map(s => <option key={s} value={s}>{s === 'All' ? 'DIY or Shop' : s}</option>)}
-        </select>
         <div className="spacer" />
         <button className="btn btn-gold" onClick={openAdd}><Plus size={15} /> Log Repair</button>
       </div>

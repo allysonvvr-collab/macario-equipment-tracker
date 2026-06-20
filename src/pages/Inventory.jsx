@@ -36,14 +36,28 @@ export default function Inventory() {
 
   const divisions = useMemo(() => ['All', ...new Set(parts.map(p => p.division).filter(Boolean))], [parts])
 
-  const filtered = parts.filter(p => {
-    if (division !== 'All' && p.division !== division) return false
-    if (search) {
-      const s = search.toLowerCase()
-      if (!`${p.part_name} ${p.part_number} ${p.vendor} ${p.fits}`.toLowerCase().includes(s)) return false
-    }
-    return true
-  })
+  const statusRank = { out: 0, low: 1, stocked: 2 }
+
+  const divisionParts = parts.filter(p => division === 'All' || p.division === division)
+  const bannerStats = divisionParts.reduce((acc, p) => {
+    const st = partStatus(p)
+    acc[st] = (acc[st] || 0) + 1
+    return acc
+  }, {})
+
+  const filtered = parts
+    .filter(p => {
+      if (division !== 'All' && p.division !== division) return false
+      if (search) {
+        const s = search.toLowerCase()
+        if (!`${p.part_name} ${p.part_number} ${p.vendor} ${p.fits}`.toLowerCase().includes(s)) return false
+      }
+      return true
+    })
+    .sort((a, b) => {
+      const r = statusRank[partStatus(a)] - statusRank[partStatus(b)]
+      return r !== 0 ? r : a.part_name.localeCompare(b.part_name)
+    })
 
   async function handleAdd(e) {
     e.preventDefault()
@@ -78,6 +92,13 @@ export default function Inventory() {
         {divisions.map(d => (
           <button key={d} className={`pill-tab ${division === d ? 'active' : ''}`} onClick={() => setDivision(d)}>{d}</button>
         ))}
+      </div>
+
+      <div className="summary-banner">
+        <span className="sb-out">Out of stock: <b>{bannerStats.out || 0}</b></span>
+        <span className="sb-low">Low / reorder: <b>{bannerStats.low || 0}</b></span>
+        <span className="sb-ok">Stocked: <b>{bannerStats.stocked || 0}</b></span>
+        <span className="text-muted">· {divisionParts.length} item{divisionParts.length === 1 ? '' : 's'} total{division !== 'All' ? ` in ${division}` : ''}</span>
       </div>
 
       <div className="filters-bar">

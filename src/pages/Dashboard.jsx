@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { PackageX, Wrench, ArrowRight, ClipboardList, Package2 } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { PackageX, Wrench, ArrowRight, ClipboardList, Package2, Plus, Clock, ShoppingCart } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { money, fmtDateShort, fmtDate, partStatus } from '../lib/helpers'
 import { RepairStatusBadge, PartStatusBadge, OrderStatusBadge } from '../components/Badges'
+import { useAuth } from '../context/AuthContext'
 
 export default function Dashboard() {
+  const navigate = useNavigate()
+  const { canAccess } = useAuth()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ activeCount: 0, inRepairCount: 0, monthSpend: 0 })
   const [atShop, setAtShop] = useState([])
@@ -44,8 +47,25 @@ export default function Dashboard() {
 
   if (loading) return <p className="text-muted">Loading…</p>
 
+  const quickActions = [
+    { module: 'repairs', label: 'Log Repair', icon: Wrench, to: '/repairs?new=1' },
+    { module: 'hours', label: 'Log Mower Hours', icon: Clock, to: '/hours' },
+    { module: 'orders', label: 'Add Order', icon: ShoppingCart, to: '/orders?new=1' },
+    { module: 'inventory', label: 'Update Inventory Count', icon: Package2, to: '/inventory' },
+  ].filter(a => canAccess(a.module))
+
   return (
     <div>
+      {quickActions.length > 0 && (
+        <div className="quick-actions">
+          {quickActions.map(a => (
+            <button key={a.to} className="quick-action-btn" onClick={() => navigate(a.to)}>
+              <Plus size={14} /> <a.icon size={15} /> {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-label">Active Equipment</div>
@@ -101,7 +121,7 @@ export default function Dashboard() {
               <Link to="/shop-status" className="btn btn-ghost btn-sm">All <ArrowRight size={14} /></Link>
             </div>
             {atShop.length === 0 ? (
-              <p className="text-muted text-sm">Nothing out at a shop right now. 🎉</p>
+              <p className="text-muted text-sm">Nothing out at a shop right now.</p>
             ) : (
               <div className="card-list">
                 {atShop.slice(0, 4).map(r => (
@@ -124,7 +144,7 @@ export default function Dashboard() {
               <Link to="/inventory" className="btn btn-ghost btn-sm">All <ArrowRight size={14} /></Link>
             </div>
             {lowParts.length === 0 ? (
-              <p className="text-muted text-sm">Inventory looks good. ✅</p>
+              <p className="text-muted text-sm">Inventory looks good.</p>
             ) : (
               <div className="card-list">
                 {lowParts.map(p => (

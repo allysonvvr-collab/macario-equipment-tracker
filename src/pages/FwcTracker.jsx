@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Droplets } from 'lucide-react'
+import { Plus, Droplets, TrendingUp } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
-import { fmtDate, todayISO, ceilingTo1000, suggestedGallons, fwcVariance } from '../lib/helpers'
+import { fmtDate, fmtDateShort, todayISO, ceilingTo1000, suggestedGallons, fwcVariance } from '../lib/helpers'
 import { FwcVarianceBadge, EmptyState } from '../components/Badges'
 import { Modal } from '../components/Modal'
+import { TrendChart } from '../components/TrendChart'
 import { useAuth } from '../context/AuthContext'
 
 const BLANK = { app_date: todayISO(), technician: '', turf_sqft_scheduled: '', rate_per_1000: '2', actual_gallons_used: '', notes: '' }
@@ -65,6 +66,24 @@ export default function FwcTracker() {
     return acc
   }, { suggested: 0, actual: 0 })
 
+  // Trend chart: one point per date, summing across technicians for that date,
+  // oldest to newest, capped to the most recent 30 entries shown.
+  const chartPoints = useMemo(() => {
+    const byDate = {}
+    for (const r of filtered) {
+      if (!byDate[r.app_date]) byDate[r.app_date] = { date: r.app_date, suggested: 0, actual: 0, hasActual: false }
+      byDate[r.app_date].suggested += Number(r.suggested_gallons || 0)
+      if (r.actual_gallons_used !== null && r.actual_gallons_used !== undefined) {
+        byDate[r.app_date].actual += Number(r.actual_gallons_used)
+        byDate[r.app_date].hasActual = true
+      }
+    }
+    return Object.values(byDate)
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(-30)
+      .map(p => ({ label: fmtDateShort(p.date), suggested: p.suggested, actual: p.hasActual ? p.actual : null }))
+  }, [filtered])
+
   return (
     <div>
       <p className="text-sm text-muted mb-16">
@@ -88,6 +107,11 @@ export default function FwcTracker() {
           <div className="kpi-label">Difference</div>
           <div className="kpi-value">{(totals.actual - totals.suggested).toFixed(0)} gal</div>
         </div>
+      </div>
+
+      <div className="card card-pad mb-16">
+        <span className="section-title mb-16"><TrendingUp size={17} /> Suggested vs Actual</span>
+        <TrendChart points={chartPoints} />
       </div>
 
       <div className="filters-bar">
