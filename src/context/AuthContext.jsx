@@ -23,7 +23,10 @@ export function AuthProvider({ children }) {
       p_identifier: identifier.trim(),
       p_credential: credential.trim(),
     })
-    if (error) return { ok: false, message: 'Something went wrong. Try again.' }
+    if (error) {
+      console.error('Supabase login error:', error)
+      return { ok: false, message: 'Something went wrong. Try again.' }
+    }
     if (!data || data.length === 0) {
       return { ok: false, message: 'Name/email or PIN/password is incorrect.' }
     }

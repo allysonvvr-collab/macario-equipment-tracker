@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { PackageX, Wrench, ArrowRight, ClipboardList } from 'lucide-react'
+import { PackageX, Wrench, ArrowRight, ClipboardList, Package2 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
-import { money, fmtDateShort, partStatus } from '../lib/helpers'
-import { RepairStatusBadge, PartStatusBadge } from '../components/Badges'
+import { money, fmtDateShort, fmtDate, partStatus } from '../lib/helpers'
+import { RepairStatusBadge, PartStatusBadge, OrderStatusBadge } from '../components/Badges'
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true)
@@ -11,6 +11,7 @@ export default function Dashboard() {
   const [atShop, setAtShop] = useState([])
   const [lowParts, setLowParts] = useState([])
   const [recentRepairs, setRecentRepairs] = useState([])
+  const [pendingOrders, setPendingOrders] = useState([])
 
   useEffect(() => { load() }, [])
 
@@ -20,13 +21,14 @@ export default function Dashboard() {
     const monthStartISO = monthStart.toISOString().slice(0, 10)
 
     const [{ count: active }, { count: inRepair }, { data: monthRepairs },
-      { data: shopRows }, { data: parts }, { data: recent }] = await Promise.all([
+      { data: shopRows }, { data: parts }, { data: recent }, { data: orders }] = await Promise.all([
       supabase.from('equipment').select('id', { count: 'exact', head: true }).eq('status', 'Active'),
       supabase.from('equipment').select('id', { count: 'exact', head: true }).eq('status', 'In Repair'),
       supabase.from('repair_log').select('total_cost').gte('date', monthStartISO),
       supabase.from('repair_log').select('*').in('status', ['At Shop', 'Waiting on Parts']).order('date_sent_to_shop', { ascending: true }),
       supabase.from('parts_catalog').select('*').eq('active', true),
       supabase.from('repair_log').select('*').order('date', { ascending: false }).limit(6),
+      supabase.from('orders').select('*').neq('status', 'Received').order('expected_date', { ascending: true }).limit(4),
     ])
 
     const monthSpend = (monthRepairs || []).reduce((s, r) => s + Number(r.total_cost || 0), 0)
@@ -36,6 +38,7 @@ export default function Dashboard() {
     setAtShop(shopRows || [])
     setLowParts(low.slice(0, 6))
     setRecentRepairs(recent || [])
+    setPendingOrders(orders || [])
     setLoading(false)
   }
 
@@ -132,6 +135,26 @@ export default function Dashboard() {
                     </div>
                     <div className="row-card-line"><span>On hand</span><b>{p.on_hand} (reorder at {p.reorder_point})</b></div>
                     <div className="row-card-line"><span>Division</span><b>{p.division}</b></div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="card card-pad">
+            <div className="flex justify-between items-center mb-16">
+              <span className="section-title"><Package2 size={17} /> Pending Orders</span>
+              <Link to="/orders" className="btn btn-ghost btn-sm">All <ArrowRight size={14} /></Link>
+            </div>
+            {pendingOrders.length === 0 ? (
+              <p className="text-muted text-sm">Nothing on order right now.</p>
+            ) : (
+              <div className="card-list">
+                {pendingOrders.map(o => (
+                  <div className="row-card" key={o.id}>
+                    <div className="row-card-top"><b>{o.product}</b><OrderStatusBadge status={o.status} /></div>
+                    <div className="row-card-line"><span>Vendor</span><b>{o.vendor || '—'}</b></div>
+                    <div className="row-card-line"><span>Expected</span><b>{fmtDate(o.expected_date)}</b></div>
                   </div>
                 ))}
               </div>

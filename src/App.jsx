@@ -10,6 +10,8 @@ import ShopStatus from './pages/ShopStatus'
 import MowerHours from './pages/MowerHours'
 import Inventory from './pages/Inventory'
 import Checkout from './pages/Checkout'
+import FwcTracker from './pages/FwcTracker'
+import Orders from './pages/Orders'
 import UsersPage from './pages/Users'
 
 export default function App() {
@@ -30,6 +32,8 @@ export default function App() {
         <Route path="/hours" element={<MowerHours />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/fwc" element={<FwcTracker />} />
+        <Route path="/orders" element={<Orders />} />
         <Route path="/users" element={isAdmin ? <UsersPage /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

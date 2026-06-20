@@ -163,6 +163,7 @@ create table if not exists parts_catalog (
   part_number text,
   division text not null default 'Mowing',
   for_equipment_type text,            -- Mower, Weed Eater, Multiple...
+  unit text,                          -- Bag, Gallon, Bottle, Jug, Roll, Filter...
   fits text,
   vendor text,
   price numeric,
@@ -211,13 +212,21 @@ alter table equipment_checkout enable row level security;
 alter table parts_catalog enable row level security;
 alter table inventory_count_history enable row level security;
 
+drop policy if exists "public rw divisions" on divisions;
 create policy "public rw divisions" on divisions for all using (true) with check (true);
+drop policy if exists "public rw shops" on shops;
 create policy "public rw shops" on shops for all using (true) with check (true);
+drop policy if exists "public rw equipment" on equipment;
 create policy "public rw equipment" on equipment for all using (true) with check (true);
+drop policy if exists "public rw hours" on equipment_hours_log;
 create policy "public rw hours" on equipment_hours_log for all using (true) with check (true);
+drop policy if exists "public rw repairs" on repair_log;
 create policy "public rw repairs" on repair_log for all using (true) with check (true);
+drop policy if exists "public rw checkout" on equipment_checkout;
 create policy "public rw checkout" on equipment_checkout for all using (true) with check (true);
+drop policy if exists "public rw parts" on parts_catalog;
 create policy "public rw parts" on parts_catalog for all using (true) with check (true);
+drop policy if exists "public rw inv_history" on inventory_count_history;
 create policy "public rw inv_history" on inventory_count_history for all using (true) with check (true);
 
 -- ============================================================================
@@ -230,7 +239,7 @@ create or replace function verify_login(p_identifier text, p_credential text)
 returns table (id uuid, name text, email text, role text, crew text)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   return query
@@ -270,7 +279,7 @@ create or replace function admin_create_user(
 returns uuid
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   new_id uuid;
@@ -309,7 +318,7 @@ create or replace function admin_reset_credential(p_id uuid, p_role text, p_pass
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 begin
   if p_role = 'crew' then
@@ -462,7 +471,7 @@ on conflict do nothing;
 -- SUPERADMIN LOGIN — change the password below before running this file!
 -- ----------------------------------------------------------------------------
 insert into users (name, email, role, password_hash)
-values ('Office', 'office@macariobros.com', 'superadmin', crypt('MacarioBros2026!', gen_salt('bf')))
+values ('Office', 'office@macariobros.com', 'superadmin', crypt('CHANGE_ME_PASSWORD', gen_salt('bf')))
 on conflict (email) do nothing;
 
 -- Done! Next: in your app's .env, set VITE_SUPABASE_URL and

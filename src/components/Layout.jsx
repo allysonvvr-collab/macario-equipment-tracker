@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Wrench, ClipboardList, Truck, Clock, Package,
-  ArrowRightLeft, Users, Menu, LogOut, Tractor,
+  ArrowRightLeft, Users, Menu, LogOut, Tractor, Droplets, Package2,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
@@ -15,13 +15,15 @@ const PAGE_TITLES = {
   '/hours': 'Mower Hours',
   '/inventory': 'Inventory & Parts',
   '/checkout': 'Equipment Checkout',
+  '/fwc': 'FWC Chemical Tracker',
+  '/orders': 'Orders',
   '/users': 'Users & Logins',
 }
 
 export default function Layout() {
   const { user, logout, isAdmin } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [counts, setCounts] = useState({ atShop: 0, lowStock: 0 })
+  const [counts, setCounts] = useState({ atShop: 0, lowStock: 0, pendingOrders: 0 })
   const location = useLocation()
 
   useEffect(() => { setDrawerOpen(false) }, [location.pathname])
@@ -39,10 +41,12 @@ export default function Layout() {
       .in('status', ['At Shop', 'Waiting on Parts'])
     const { data: parts } = await supabase.from('parts_catalog').select('on_hand, reorder_point').eq('active', true)
     const low = (parts || []).filter(p => Number(p.on_hand) <= Number(p.reorder_point)).length
-    setCounts({ atShop: shopCount || 0, lowStock: low })
+    const { count: pendingOrders } = await supabase
+      .from('orders').select('id', { count: 'exact', head: true }).neq('status', 'Received')
+    setCounts({ atShop: shopCount || 0, lowStock: low, pendingOrders: pendingOrders || 0 })
   }
 
-  const navItems = [
+  const opsItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/equipment', label: 'All Equipment', icon: Tractor },
     { to: '/repairs', label: 'Repair Log', icon: Wrench },
@@ -50,6 +54,10 @@ export default function Layout() {
     { to: '/hours', label: 'Mower Hours', icon: Clock },
     { to: '/inventory', label: 'Inventory & Parts', icon: Package, count: counts.lowStock },
     { to: '/checkout', label: 'Checkout Log', icon: ArrowRightLeft },
+  ]
+  const fieldItems = [
+    { to: '/fwc', label: 'FWC Tracker', icon: Droplets },
+    { to: '/orders', label: 'Orders', icon: Package2, count: counts.pendingOrders },
   ]
 
   const title = PAGE_TITLES[location.pathname] || 'Macario Brothers'
@@ -68,8 +76,17 @@ export default function Layout() {
 
         <nav className="sidebar-nav">
           <div className="sidebar-section-label">Operations</div>
-          {navItems.map(({ to, label, icon: Icon, count }) => (
+          {opsItems.map(({ to, label, icon: Icon, count }) => (
             <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+              <Icon size={16} />
+              {label}
+              {!!count && <span className="badge-count">{count}</span>}
+            </NavLink>
+          ))}
+
+          <div className="sidebar-section-label">Field &amp; Orders</div>
+          {fieldItems.map(({ to, label, icon: Icon, count }) => (
+            <NavLink key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
               <Icon size={16} />
               {label}
               {!!count && <span className="badge-count">{count}</span>}

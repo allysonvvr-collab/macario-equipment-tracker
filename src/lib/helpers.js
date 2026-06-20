@@ -59,3 +59,33 @@ export const REPAIR_TYPES = [
   'Filter', 'Belt', 'Carburetor', 'Blade', 'Spark Plug', 'Spindle',
   'Tire', 'Tune-Up', 'Oil Change', 'Electrical', 'Other'
 ]
+
+// FWC chemical application math — mirrors the "June Tracker" sheet formula:
+// rounded sq ft = CEILING(scheduled, 1000); suggested gallons = (rounded/1000) * rate
+export function ceilingTo1000(sqft) {
+  const n = Number(sqft ?? 0)
+  if (!n) return 0
+  return Math.ceil(n / 1000) * 1000
+}
+
+export function suggestedGallons(roundedSqft, ratePer1000) {
+  const r = Number(roundedSqft ?? 0)
+  const rate = Number(ratePer1000 ?? 2)
+  if (!r) return 0
+  return Math.round((r / 1000) * rate * 100) / 100
+}
+
+// How far off actual was from suggested, as a status for quick visual flagging
+export function fwcVariance(actual, suggested) {
+  if (actual === null || actual === undefined || actual === '') return null
+  const a = Number(actual)
+  const s = Number(suggested)
+  if (!s) return null
+  const pct = (a - s) / s
+  if (pct > 0.1) return 'over'
+  if (pct < -0.1) return 'under'
+  return 'ontarget'
+}
+
+export const ORDER_CATEGORIES = ['FWC Chemical', 'Online/General']
+export const ORDER_STATUSES = ['Ordered', 'In Transit', 'Backordered', 'Received']

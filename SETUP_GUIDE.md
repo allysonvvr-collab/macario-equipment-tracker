@@ -118,6 +118,48 @@ something sensitive), that would mean switching to real Supabase Auth with
 per-role database policies — a bigger lift, and not something this kind of
 internal tool typically needs.
 
+## Loading the real Inventory Planner data
+
+If you've already got the app deployed and just need to bring in the real
+Mowing + Weed Control inventory (from Douglas's Inventory Planner sheet):
+
+1. Supabase → **SQL Editor** → **New Query**
+2. Open `supabase/02_inventory_planner_seed.sql` from this project folder,
+   paste the whole thing, click **Run**
+3. Refresh the app → **Inventory & Parts** → you'll see both divisions
+   fully populated with real on-hand counts and reorder points
+
+This is a one-time import — run it once, not every week. From then on,
+updating a count is just opening the app and hitting "Update Count."
+
+One row at the bottom (a spark plug) came from a slightly garbled row on the
+original sheet — worth a quick double-check in the app once it's imported.
+
+## Adding FWC Tracker + Orders
+
+Same idea — one more one-time SQL paste:
+
+1. Supabase → **SQL Editor** → **New Query**
+2. Open `supabase/03_fwc_and_orders.sql`, paste the whole thing, click **Run**
+3. Refresh the app — you'll see **FWC Tracker** and **Orders** in the sidebar
+   under "Field & Orders," both populated with real history from the sheets
+
+**FWC Tracker** replicates the formula from the "June Tracker" sheet exactly:
+rounded sq ft = scheduled rounded up to the nearest 1,000; suggested gallons
+= (rounded ÷ 1,000) × rate, where rate defaults to 2 but is editable per
+entry if a product or season ever calls for a different rate.
+
+**Orders** is one system under the hood with two tabs in the UI — "FWC
+Orders" (Harrels/Helena-style chemical orders) and "Online Orders"
+(Amazon/Home Depot-style general orders) — so Douglas gets the separation
+he asked for without two systems to maintain.
+
+**Fleet Repair Tracker is not built yet** — on hold until that sheet comes
+over. Once it does, this is also the moment to add real per-module login
+restrictions (e.g. a driver account that only sees Fleet) — right now every
+logged-in user can see every module except Users & Logins, which is
+admin-only.
+
 ## What I left out (easy to add later)
 
 - **Friday Slack reminder for inventory counts** — you said skip it for now,

@@ -70,7 +70,7 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="login-footer">Macario Brothers Lawn Care · San Antonio, TX<br />Need a login? Ask your office admin.</p>
+        <p className="login-footer">Macario Brothers Lawn Care · San Antonio, TX</p>
       </div>
     </div>
   )

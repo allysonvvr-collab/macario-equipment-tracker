@@ -7,7 +7,7 @@ import { Modal } from '../components/Modal'
 import { useAuth } from '../context/AuthContext'
 
 const BLANK = {
-  part_name: '', part_number: '', division: 'Mowing', for_equipment_type: '', fits: '',
+  part_name: '', part_number: '', division: 'Mowing', for_equipment_type: '', fits: '', unit: '',
   vendor: '', price: '', on_hand: '0', reorder_point: '0', reorder_qty: '', notes: '',
 }
 
@@ -107,8 +107,8 @@ export default function Inventory() {
                     <td>{p.division}</td>
                     <td>{p.vendor || '—'}</td>
                     <td>{money(p.price)}</td>
-                    <td className="cell-strong">{p.on_hand}</td>
-                    <td>{p.reorder_point}</td>
+                    <td className="cell-strong">{p.on_hand}{p.unit ? ` ${p.unit}` : ''}</td>
+                    <td>{p.reorder_point}{p.unit ? ` ${p.unit}` : ''}</td>
                     <td><PartStatusBadge statusKey={partStatus(p)} /></td>
                     <td className="cell-muted">{p.last_counted_at ? fmtDate(p.last_counted_at.slice(0, 10)) : '—'}</td>
                     <td>
@@ -127,7 +127,7 @@ export default function Inventory() {
             {filtered.map(p => (
               <div className="row-card" key={p.id}>
                 <div className="row-card-top"><b>{p.part_name}</b><PartStatusBadge statusKey={partStatus(p)} /></div>
-                <div className="row-card-line"><span>On hand</span><b>{p.on_hand} (reorder at {p.reorder_point})</b></div>
+                <div className="row-card-line"><span>On hand</span><b>{p.on_hand}{p.unit ? ` ${p.unit}` : ''} (reorder at {p.reorder_point})</b></div>
                 <div className="row-card-line"><span>Division</span><b>{p.division}</b></div>
                 <div className="row-card-line"><span>Vendor</span><b>{p.vendor || '—'}</b></div>
                 <div className="flex gap-6 mt-10">
@@ -161,9 +161,12 @@ export default function Inventory() {
               <div className="field"><label>Part #</label>
                 <input value={form.part_number} onChange={e => setForm({ ...form, part_number: e.target.value })} />
               </div>
-              <div className="field"><label>Vendor</label>
-                <input value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} />
+              <div className="field"><label>Unit</label>
+                <input value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} placeholder="Bag, Gallon, Bottle, Jug…" />
               </div>
+            </div>
+            <div className="field"><label>Vendor</label>
+              <input value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} />
             </div>
             <div className="field-row">
               <div className="field"><label>Price ($)</label>

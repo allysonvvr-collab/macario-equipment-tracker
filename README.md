@@ -18,6 +18,8 @@ step from zero to a live link, in order.
 | **Mower Hours** | Log hour-meter readings per mower over time |
 | **Inventory & Parts** | Stock per division (Mowing, Weed Control, Christmas Lights, …) with reorder points. Updating a count auto-logs history — no more duplicating tabs every week. |
 | **Checkout Log** | Backup/loaner equipment handed out from the yard |
+| **FWC Tracker** | Daily chemical application log — scheduled turf sq ft → suggested gallons (2 gal/1,000 sq ft, editable rate) → actual gallons used, flagged if more than 10% off target |
+| **Orders** | One log, two views — "FWC Orders" (Harrels/Helena chemical orders) and "Online Orders" (Amazon/Home Depot general orders) |
 | **Users & Logins** *(admin only)* | Add crew (name + PIN) or office/admin accounts (email + password), reset PINs/passwords |
 
 ## Logins
