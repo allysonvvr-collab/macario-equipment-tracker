@@ -117,23 +117,34 @@ export default function EquipmentDetail() {
           </form>
         )}
 
-        {eq.notes && !editing && <p className="text-sm text-muted mt-16">📝 {eq.notes}</p>}
+        {eq.notes && !editing && <p className="text-sm text-muted mt-16">Note: {eq.notes}</p>}
       </div>
 
       {isMowerLike && (
         <div className="card card-pad mb-16">
           <span className="section-title mb-16"><Clock size={17} /> Hours Log</span>
           {hours.length === 0 ? <p className="text-muted text-sm">No hours logged yet. Add one from the Mower Hours page.</p> : (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead><tr><th>Date</th><th>Hours Reading</th><th>Logged By</th><th>Notes</th></tr></thead>
-                <tbody>
-                  {hours.map(h => (
-                    <tr key={h.id}><td>{fmtDate(h.log_date)}</td><td className="cell-strong">{h.hours_reading}</td><td>{h.logged_by || '—'}</td><td className="cell-muted">{h.notes || '—'}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="table-wrap hide-mobile">
+                <table className="data-table">
+                  <thead><tr><th>Date</th><th>Hours Reading</th><th>Logged By</th><th>Notes</th></tr></thead>
+                  <tbody>
+                    {hours.map(h => (
+                      <tr key={h.id}><td>{fmtDate(h.log_date)}</td><td className="cell-strong">{h.hours_reading}</td><td>{h.logged_by || '—'}</td><td className="cell-muted">{h.notes || '—'}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="card-list show-mobile">
+                {hours.map(h => (
+                  <div className="row-card" key={h.id}>
+                    <div className="row-card-top"><b>{fmtDate(h.log_date)}</b><span className="text-sm" style={{ fontWeight: 700 }}>{h.hours_reading} hrs</span></div>
+                    <div className="row-card-line"><span>Logged by</span><b>{h.logged_by || '—'}</b></div>
+                    {h.notes && <div className="row-card-line"><span>Notes</span><b>{h.notes}</b></div>}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}
@@ -141,23 +152,34 @@ export default function EquipmentDetail() {
       <div className="card card-pad">
         <span className="section-title mb-16"><Wrench size={17} /> Repair History</span>
         {repairs.length === 0 ? <p className="text-muted text-sm">No repairs logged for this asset yet.</p> : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead><tr><th>Date</th><th>Repair</th><th>By</th><th>DIY/Shop</th><th>Status</th><th>Total</th></tr></thead>
-              <tbody>
-                {repairs.map(r => (
-                  <tr key={r.id}>
-                    <td>{fmtDate(r.date)}</td>
-                    <td className="cell-strong">{r.repair_type}</td>
-                    <td>{r.performed_by || '—'}</td>
-                    <td>{r.diy_or_shop}</td>
-                    <td><RepairStatusBadge status={r.status} /></td>
-                    <td>{money(r.total_cost)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="table-wrap hide-mobile">
+              <table className="data-table">
+                <thead><tr><th>Date</th><th>Repair</th><th>By</th><th>DIY/Shop</th><th>Status</th><th>Total</th></tr></thead>
+                <tbody>
+                  {repairs.map(r => (
+                    <tr key={r.id}>
+                      <td>{fmtDate(r.date)}</td>
+                      <td className="cell-strong">{r.repair_type}</td>
+                      <td>{r.performed_by || '—'}</td>
+                      <td>{r.diy_or_shop}</td>
+                      <td><RepairStatusBadge status={r.status} /></td>
+                      <td>{money(r.total_cost)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="card-list show-mobile">
+              {repairs.map(r => (
+                <div className="row-card" key={r.id}>
+                  <div className="row-card-top"><b>{r.repair_type} — {fmtDate(r.date)}</b><RepairStatusBadge status={r.status} /></div>
+                  <div className="row-card-line"><span>By</span><b>{r.performed_by || '—'} ({r.diy_or_shop})</b></div>
+                  <div className="row-card-line"><span>Total</span><b>{money(r.total_cost)}</b></div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

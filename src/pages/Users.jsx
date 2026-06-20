@@ -144,6 +144,37 @@ export default function UsersPage() {
     )
   }
 
+  function renderCard(u) {
+    return (
+      <div className="row-card" key={u.id}>
+        <div className="row-card-top">
+          <b>{u.name}</b>
+          {u.active ? <span className="badge badge-active">Active</span> : <span className="badge badge-retired">Disabled</span>}
+        </div>
+        <div className="row-card-line"><span>Login</span><b>{u.role === 'crew' ? (u.username || '—') : (u.email || '—')}</b></div>
+        <div className="row-card-line"><span>Role</span><b>{u.role}</b></div>
+        <div className="row-card-line"><span>Crew</span><b>{u.crew || '—'}</b></div>
+        <div className="row-card-line">
+          <span>Access</span>
+          <b>
+            {u.role !== 'crew' ? 'All modules'
+              : (u.modules || []).length === 0 ? 'None yet'
+              : `${(u.modules || []).length} module${(u.modules || []).length === 1 ? '' : 's'}`}
+          </b>
+        </div>
+        <div className="flex gap-6 mt-10">
+          {u.role === 'crew' && (
+            <button className="btn btn-ghost btn-sm w-full" onClick={() => openAccess(u)}><ShieldCheck size={13} /> Access</button>
+          )}
+          <button className="btn btn-ghost btn-sm w-full" onClick={() => { setResetUser(u); setResetVal(''); setResetError('') }}><KeyRound size={13} /> Reset</button>
+          {!(u.role === 'superadmin' && u.id !== me.id) && (
+            <button className="btn btn-ghost btn-sm w-full" onClick={() => toggleActive(u)}>{u.active ? 'Disable' : 'Enable'}</button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <p className="text-sm text-muted mb-16">
@@ -166,24 +197,30 @@ export default function UsersPage() {
           {officeUsers.length === 0 ? (
             <p className="text-muted text-sm mb-16">No office/admin accounts yet.</p>
           ) : (
-            <div className="table-wrap mb-16">
-              <table className="data-table">
-                <thead><tr><th>Name</th><th>Username / Email</th><th>Role</th><th>Crew</th><th>Access</th><th>Status</th><th></th></tr></thead>
-                <tbody>{officeUsers.map(renderRow)}</tbody>
-              </table>
-            </div>
+            <>
+              <div className="table-wrap mb-16 hide-mobile">
+                <table className="data-table">
+                  <thead><tr><th>Name</th><th>Username / Email</th><th>Role</th><th>Crew</th><th>Access</th><th>Status</th><th></th></tr></thead>
+                  <tbody>{officeUsers.map(renderRow)}</tbody>
+                </table>
+              </div>
+              <div className="card-list show-mobile mb-16">{officeUsers.map(renderCard)}</div>
+            </>
           )}
 
           <div className="section-divider-label">Crew</div>
           {crewUsers.length === 0 ? (
             <p className="text-muted text-sm">No crew accounts yet.</p>
           ) : (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead><tr><th>Name</th><th>Username / Email</th><th>Role</th><th>Crew</th><th>Access</th><th>Status</th><th></th></tr></thead>
-                <tbody>{crewUsers.map(renderRow)}</tbody>
-              </table>
-            </div>
+            <>
+              <div className="table-wrap hide-mobile">
+                <table className="data-table">
+                  <thead><tr><th>Name</th><th>Username / Email</th><th>Role</th><th>Crew</th><th>Access</th><th>Status</th><th></th></tr></thead>
+                  <tbody>{crewUsers.map(renderRow)}</tbody>
+                </table>
+              </div>
+              <div className="card-list show-mobile">{crewUsers.map(renderCard)}</div>
+            </>
           )}
         </>
       )}

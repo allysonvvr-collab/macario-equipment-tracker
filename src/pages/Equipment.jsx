@@ -143,6 +143,16 @@ export default function Equipment() {
           {['All', 'Active', 'In Repair', 'Retired'].map(s => <option key={s} value={s}>{s === 'All' ? 'All Statuses' : s}</option>)}
         </select>
         <div className="spacer" />
+        <select
+          className="show-mobile"
+          value={`${sortKey}:${sortDir}`}
+          onChange={e => { const [k, d] = e.target.value.split(':'); setSortKey(k); setSortDir(d) }}
+        >
+          {COLUMNS.map(col => ([
+            <option key={`${col.key}:asc`} value={`${col.key}:asc`}>Sort: {col.label} (A-Z)</option>,
+            <option key={`${col.key}:desc`} value={`${col.key}:desc`}>Sort: {col.label} (Z-A)</option>,
+          ]))}
+        </select>
         <button className="btn btn-gold" onClick={openAdd}><Plus size={15} /> Add Equipment</button>
       </div>
 
