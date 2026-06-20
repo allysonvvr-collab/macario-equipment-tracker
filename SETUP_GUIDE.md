@@ -160,6 +160,34 @@ restrictions (e.g. a driver account that only sees Fleet) — right now every
 logged-in user can see every module except Users & Logins, which is
 admin-only.
 
+## Module-level access control (Office vs Andrew vs Crew)
+
+Run `supabase/04_module_access.sql` once. It:
+- Adds a `modules` list to each user (which sidebar items they can see)
+- Defaults every existing user to "see everything," so nothing breaks
+- Lets you actually restrict people from the app from here on
+
+After running it, go to **Users & Logins**:
+- Office / admin accounts always see every module, no setup needed
+- For each crew account, click the shield icon and check only the modules
+  that person should see — e.g. Andrew gets Inventory + FWC Tracker + Orders;
+  mowing crew gets Equipment + Repair Log + Shop Status + Mower Hours +
+  Checkout
+
+This is what Douglas actually asked for on Fleet ("2 different logins and
+access on the same app") — now it applies everywhere, not just there.
+
+## All the SQL files, in order
+
+If you're setting this up fresh or just want to confirm what's been run:
+
+1. `schema.sql` — everything: tables, security, starter seed data
+2. `02_inventory_planner_seed.sql` — real Mowing + Weed Control inventory
+3. `03_fwc_and_orders.sql` — FWC Tracker + Orders, with real history
+4. `04_module_access.sql` — per-user module permissions
+
+Each one only needs to run once, ever.
+
 ## What I left out (easy to add later)
 
 - **Friday Slack reminder for inventory counts** — you said skip it for now,

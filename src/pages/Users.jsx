@@ -1,12 +1,32 @@
 import { useEffect, useState } from 'react'
-import { Plus, KeyRound, Users as UsersIcon } from 'lucide-react'
+import { Plus, KeyRound, Users as UsersIcon, ShieldCheck } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
-import { fmtDate } from '../lib/helpers'
+import { MODULES } from '../lib/helpers'
 import { EmptyState } from '../components/Badges'
 import { Modal } from '../components/Modal'
 import { useAuth } from '../context/AuthContext'
 
-const BLANK = { name: '', email: '', role: 'crew', crew: '', password: '' }
+const BLANK = { name: '', email: '', role: 'crew', crew: '', password: '', modules: [] }
+
+function ModuleCheckboxes({ selected, onChange }) {
+  function toggle(key) {
+    onChange(selected.includes(key) ? selected.filter(m => m !== key) : [...selected, key])
+  }
+  return (
+    <div className="field">
+      <label>What can they see?</label>
+      <div className="flex" style={{ flexWrap: 'wrap', gap: 8 }}>
+        {MODULES.map(m => (
+          <label key={m.key} className="pill-tab" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+            <input type="checkbox" style={{ width: 14, margin: 0 }} checked={selected.includes(m.key)} onChange={() => toggle(m.key)} />
+            {m.label}
+          </label>
+        ))}
+      </div>
+      <p className="hint mt-6">Leave all unchecked and they won't see any modules in the sidebar — just the dashboard.</p>
+    </div>
+  )
+}
 
 export default function UsersPage() {
   const { isSuperadmin, user: me } = useAuth()
@@ -17,6 +37,8 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false)
   const [resetUser, setResetUser] = useState(null)
   const [resetVal, setResetVal] = useState('')
+  const [accessUser, setAccessUser] = useState(null)
+  const [accessModules, setAccessModules] = useState([])
 
   useEffect(() => { load() }, [])
 
@@ -33,6 +55,7 @@ export default function UsersPage() {
     await supabase.rpc('admin_create_user', {
       p_name: form.name, p_email: form.email || null, p_role: form.role,
       p_crew: form.crew || null, p_password: form.password,
+      p_modules: form.role === 'crew' ? form.modules : [],
     })
     setSaving(false); setAddOpen(false); setForm(BLANK); load()
   }
@@ -51,10 +74,24 @@ export default function UsersPage() {
     setSaving(false); setResetUser(null); setResetVal('')
   }
 
+  function openAccess(u) { setAccessUser(u); setAccessModules(u.modules || []) }
+
+  async function handleSaveAccess(e) {
+    e.preventDefault()
+    setSaving(true)
+    await supabase.rpc('admin_update_user', {
+      p_id: accessUser.id, p_name: accessUser.name, p_email: accessUser.email,
+      p_role: accessUser.role, p_crew: accessUser.crew, p_active: accessUser.active,
+      p_modules: accessModules,
+    })
+    setSaving(false); setAccessUser(null); load()
+  }
+
   return (
     <div>
       <p className="text-sm text-muted mb-16">
-        Office/admin accounts log in with email + password. Crew log in with their name + a 4-digit PIN.
+        Office/admin accounts log in with email + password and always see every module.
+        Crew log in with their name + a 4-digit PIN and only see what's checked off below.
       </p>
 
       <div className="filters-bar">
@@ -67,7 +104,7 @@ export default function UsersPage() {
       ) : (
         <div className="table-wrap">
           <table className="data-table">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Crew</th><th>Status</th><th>Added</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Crew</th><th>Access</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {users.map(u => (
                 <tr key={u.id}>
@@ -75,10 +112,21 @@ export default function UsersPage() {
                   <td className="cell-muted">{u.email || '—'}</td>
                   <td><span className="badge badge-neutral">{u.role}</span></td>
                   <td>{u.crew || '—'}</td>
+                  <td>
+                    {u.role !== 'crew' ? (
+                      <span className="badge badge-stocked">All modules</span>
+                    ) : (u.modules || []).length === 0 ? (
+                      <span className="badge badge-out">None yet</span>
+                    ) : (
+                      <span className="text-xs text-muted">{(u.modules || []).length} module{(u.modules || []).length === 1 ? '' : 's'}</span>
+                    )}
+                  </td>
                   <td>{u.active ? <span className="badge badge-active">Active</span> : <span className="badge badge-retired">Disabled</span>}</td>
-                  <td className="cell-muted">{fmtDate(u.created_at)}</td>
                   <td>
                     <div className="flex gap-6">
+                      {u.role === 'crew' && (
+                        <button className="icon-btn" title="Edit access" onClick={() => openAccess(u)}><ShieldCheck size={14} /></button>
+                      )}
                       <button className="icon-btn" title="Reset PIN/password" onClick={() => { setResetUser(u); setResetVal('') }}><KeyRound size={14} /></button>
                       {!(u.role === 'superadmin' && u.id !== me.id) && (
                         <button className="btn btn-ghost btn-sm" onClick={() => toggleActive(u)}>{u.active ? 'Disable' : 'Enable'}</button>
@@ -93,7 +141,7 @@ export default function UsersPage() {
       )}
 
       {addOpen && (
-        <Modal title="Add User" onClose={() => setAddOpen(false)}>
+        <Modal title="Add User" onClose={() => setAddOpen(false)} width="560px">
           <form onSubmit={handleAdd}>
             <div className="field"><label>Name</label>
               <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
@@ -117,6 +165,9 @@ export default function UsersPage() {
               <label>{form.role === 'crew' ? '4-digit PIN' : 'Password'}</label>
               <input value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
             </div>
+            {form.role === 'crew' && (
+              <ModuleCheckboxes selected={form.modules} onChange={(modules) => setForm({ ...form, modules })} />
+            )}
             <div className="flex justify-between gap-10 mt-16">
               <button type="button" className="btn btn-ghost" onClick={() => setAddOpen(false)}>Cancel</button>
               <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Add User'}</button>
@@ -135,6 +186,18 @@ export default function UsersPage() {
             <div className="flex justify-between gap-10 mt-16">
               <button type="button" className="btn btn-ghost" onClick={() => setResetUser(null)}>Cancel</button>
               <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {accessUser && (
+        <Modal title={`Edit Access — ${accessUser.name}`} onClose={() => setAccessUser(null)} width="520px">
+          <form onSubmit={handleSaveAccess}>
+            <ModuleCheckboxes selected={accessModules} onChange={setAccessModules} />
+            <div className="flex justify-between gap-10 mt-16">
+              <button type="button" className="btn btn-ghost" onClick={() => setAccessUser(null)}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Access'}</button>
             </div>
           </form>
         </Modal>

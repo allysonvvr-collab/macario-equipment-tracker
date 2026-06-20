@@ -44,8 +44,16 @@ export function AuthProvider({ children }) {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const isSuperadmin = user?.role === 'superadmin'
 
+  // Admin/superadmin always have full access. Crew is restricted to
+  // whatever's in user.modules (set from the Users & Logins page).
+  function canAccess(moduleKey) {
+    if (!user) return false
+    if (isAdmin) return true
+    return Array.isArray(user.modules) && user.modules.includes(moduleKey)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isSuperadmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isSuperadmin, canAccess }}>
       {children}
     </AuthContext.Provider>
   )

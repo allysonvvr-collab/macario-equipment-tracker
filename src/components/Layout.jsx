@@ -21,7 +21,7 @@ const PAGE_TITLES = {
 }
 
 export default function Layout() {
-  const { user, logout, isAdmin } = useAuth()
+  const { user, logout, isAdmin, canAccess } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [counts, setCounts] = useState({ atShop: 0, lowStock: 0, pendingOrders: 0 })
   const location = useLocation()
@@ -47,18 +47,18 @@ export default function Layout() {
   }
 
   const opsItems = [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/equipment', label: 'All Equipment', icon: Tractor },
-    { to: '/repairs', label: 'Repair Log', icon: Wrench },
-    { to: '/shop-status', label: 'Shop Status', icon: ClipboardList, count: counts.atShop },
-    { to: '/hours', label: 'Mower Hours', icon: Clock },
-    { to: '/inventory', label: 'Inventory & Parts', icon: Package, count: counts.lowStock },
-    { to: '/checkout', label: 'Checkout Log', icon: ArrowRightLeft },
-  ]
+    { to: '/', label: 'Dashboard', icon: LayoutDashboard, module: null },
+    { to: '/equipment', label: 'All Equipment', icon: Tractor, module: 'equipment' },
+    { to: '/repairs', label: 'Repair Log', icon: Wrench, module: 'repairs' },
+    { to: '/shop-status', label: 'Shop Status', icon: ClipboardList, count: counts.atShop, module: 'shop_status' },
+    { to: '/hours', label: 'Mower Hours', icon: Clock, module: 'hours' },
+    { to: '/inventory', label: 'Inventory & Parts', icon: Package, count: counts.lowStock, module: 'inventory' },
+    { to: '/checkout', label: 'Checkout Log', icon: ArrowRightLeft, module: 'checkout' },
+  ].filter(item => !item.module || canAccess(item.module))
   const fieldItems = [
-    { to: '/fwc', label: 'FWC Tracker', icon: Droplets },
-    { to: '/orders', label: 'Orders', icon: Package2, count: counts.pendingOrders },
-  ]
+    { to: '/fwc', label: 'FWC Tracker', icon: Droplets, module: 'fwc' },
+    { to: '/orders', label: 'Orders', icon: Package2, count: counts.pendingOrders, module: 'orders' },
+  ].filter(item => canAccess(item.module))
 
   const title = PAGE_TITLES[location.pathname] || 'Macario Brothers'
 
@@ -84,14 +84,18 @@ export default function Layout() {
             </NavLink>
           ))}
 
-          <div className="sidebar-section-label">Field &amp; Orders</div>
-          {fieldItems.map(({ to, label, icon: Icon, count }) => (
-            <NavLink key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <Icon size={16} />
-              {label}
-              {!!count && <span className="badge-count">{count}</span>}
-            </NavLink>
-          ))}
+          {fieldItems.length > 0 && (
+            <>
+              <div className="sidebar-section-label">Field &amp; Orders</div>
+              {fieldItems.map(({ to, label, icon: Icon, count }) => (
+                <NavLink key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Icon size={16} />
+                  {label}
+                  {!!count && <span className="badge-count">{count}</span>}
+                </NavLink>
+              ))}
+            </>
+          )}
 
           {isAdmin && (
             <>

@@ -14,6 +14,13 @@ import FwcTracker from './pages/FwcTracker'
 import Orders from './pages/Orders'
 import UsersPage from './pages/Users'
 
+// Wraps a page so visiting the URL directly respects the same module
+// permissions as the sidebar — not just hiding the nav link.
+function Guard({ moduleKey, children }) {
+  const { canAccess } = useAuth()
+  return canAccess(moduleKey) ? children : <Navigate to="/" replace />
+}
+
 export default function App() {
   const { user, loading, isAdmin } = useAuth()
 
@@ -25,15 +32,15 @@ export default function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/equipment" element={<Equipment />} />
-        <Route path="/equipment/:id" element={<EquipmentDetail />} />
-        <Route path="/repairs" element={<RepairLog />} />
-        <Route path="/shop-status" element={<ShopStatus />} />
-        <Route path="/hours" element={<MowerHours />} />
-        <Route path="/inventory" element={<Inventory />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/fwc" element={<FwcTracker />} />
-        <Route path="/orders" element={<Orders />} />
+        <Route path="/equipment" element={<Guard moduleKey="equipment"><Equipment /></Guard>} />
+        <Route path="/equipment/:id" element={<Guard moduleKey="equipment"><EquipmentDetail /></Guard>} />
+        <Route path="/repairs" element={<Guard moduleKey="repairs"><RepairLog /></Guard>} />
+        <Route path="/shop-status" element={<Guard moduleKey="shop_status"><ShopStatus /></Guard>} />
+        <Route path="/hours" element={<Guard moduleKey="hours"><MowerHours /></Guard>} />
+        <Route path="/inventory" element={<Guard moduleKey="inventory"><Inventory /></Guard>} />
+        <Route path="/checkout" element={<Guard moduleKey="checkout"><Checkout /></Guard>} />
+        <Route path="/fwc" element={<Guard moduleKey="fwc"><FwcTracker /></Guard>} />
+        <Route path="/orders" element={<Guard moduleKey="orders"><Orders /></Guard>} />
         <Route path="/users" element={isAdmin ? <UsersPage /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

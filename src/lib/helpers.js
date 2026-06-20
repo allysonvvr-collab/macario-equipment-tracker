@@ -89,3 +89,16 @@ export function fwcVariance(actual, suggested) {
 
 export const ORDER_CATEGORIES = ['FWC Chemical', 'Online/General']
 export const ORDER_STATUSES = ['Ordered', 'In Transit', 'Backordered', 'Received']
+
+// Module access control — superadmin/admin always see everything regardless;
+// this list only restricts what a 'crew' user sees in the nav and can route to.
+export const MODULES = [
+  { key: 'equipment', label: 'All Equipment' },
+  { key: 'repairs', label: 'Repair Log' },
+  { key: 'shop_status', label: 'Shop Status' },
+  { key: 'hours', label: 'Mower Hours' },
+  { key: 'inventory', label: 'Inventory & Parts' },
+  { key: 'checkout', label: 'Checkout Log' },
+  { key: 'fwc', label: 'FWC Tracker' },
+  { key: 'orders', label: 'Orders' },
+]

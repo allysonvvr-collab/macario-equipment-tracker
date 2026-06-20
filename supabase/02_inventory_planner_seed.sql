@@ -74,7 +74,7 @@ insert into parts_catalog (part_name, division, unit, on_hand, reorder_point, no
   ('139-1842 Kit de transmisión / Transmission Kit', 'Mowing', 'Kit', 0, 2, null),
   ('Cadena motosierra 63/45', 'Mowing', 'Chain', 4, 2, null),
   ('Cadena motosierra 61/44 (poste)', 'Mowing', 'Chain', 3, 2, null),
-  ('Bujía / Spark Plug — Kohler 4006', 'Mowing', 'Ea', 3, null, 'Qty is a best guess from a messy row on the original sheet — double check this one in the app');
+  ('Bujía / Spark Plug — Kohler 4006', 'Mowing', 'Ea', 3, 0, 'Qty is a best guess from a messy row on the original sheet — double check this one in the app');
 
 -- Done. Open the app → Inventory & Parts. You'll see both divisions fully
 -- populated with today's real counts and reorder points. From here on,
