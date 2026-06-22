@@ -142,7 +142,7 @@ a { color: var(--green-700); text-decoration: none; }
 .topbar-sub { font-size: .8rem; color: var(--gray-500); margin-top: 2px; }
 .menu-btn { display: none; background: none; border: none; cursor: pointer; padding: 6px; color: var(--green-800); }
 
-.page { padding: 22px 24px 60px; flex: 1; width: 100%; max-width: 1280px; }
+.page { padding: 22px 28px 60px; flex: 1; width: 100%; max-width: 1680px; margin: 0 auto; }
 
 .sidebar-overlay { display: none; }
 
@@ -195,6 +195,11 @@ a { color: var(--green-700); text-decoration: none; }
 .kpi-sub { font-size: .76rem; color: var(--gray-500); margin-top: 2px; }
 .kpi-card.alert .kpi-value { color: var(--red); }
 .kpi-card.warn .kpi-value { color: var(--amber); }
+@media (min-width: 981px) {
+  .kpi-card { padding: 20px 22px; }
+  .kpi-value { font-size: 2.1rem; }
+  .kpi-label { font-size: .76rem; }
+}
 
 /* ---------- Shop tag chip — the signature element ---------- */
 .shop-tag {
@@ -227,13 +232,13 @@ a { color: var(--green-700); text-decoration: none; }
 
 /* ---------- Tables ---------- */
 .table-wrap { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--gray-200); background: white; }
-table.data-table { width: 100%; border-collapse: collapse; font-size: .85rem; min-width: 640px; }
+table.data-table { width: 100%; border-collapse: collapse; font-size: .88rem; min-width: 640px; }
 table.data-table th {
-  text-align: left; font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
-  color: var(--gray-500); padding: 11px 14px; background: var(--gray-50); border-bottom: 1px solid var(--gray-200);
+  text-align: left; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--gray-500); padding: 13px 18px; background: var(--gray-50); border-bottom: 1px solid var(--gray-200);
   white-space: nowrap;
 }
-table.data-table td { padding: 11px 14px; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
+table.data-table td { padding: 13px 18px; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
 table.data-table tbody tr:hover { background: var(--green-100); cursor: default; }
 table.data-table tbody tr.clickable { cursor: pointer; }
 table.data-table tbody tr:last-child td { border-bottom: none; }
@@ -260,6 +265,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--g
 textarea { resize: vertical; min-height: 64px; }
 .hint { font-size: .73rem; color: var(--gray-500); }
 .error-text { font-size: .8rem; color: var(--red); font-weight: 600; }
+
+/* iOS Safari auto-zooms the whole page when a focused input's font is under
+   16px, then leaves you zoomed in. Bumping mobile inputs to 16px stops it
+   at the source — better than disabling pinch-zoom, which would hurt
+   anyone who actually relies on it. */
+@media (max-width: 700px) {
+  input, select, textarea { font-size: 16px; }
+}
 
 /* ---------- Filters bar ---------- */
 .filters-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; align-items: center; }
@@ -323,6 +336,7 @@ textarea { resize: vertical; min-height: 64px; }
 
 .spin { animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
 /* ---------- Quick actions (Dashboard) ---------- */
 .quick-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
 .quick-action-btn {
@@ -387,6 +401,7 @@ th.sortable.active .sort-arrow { opacity: 1; color: var(--green-700); }
   color: var(--gray-500); margin: 22px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--gray-200);
 }
 .section-divider-label:first-child { margin-top: 0; }
+
 /* utility */
 .flex { display: flex; }
 .flex-col { display: flex; flex-direction: column; }

@@ -61,8 +61,8 @@ export default function ShopStatus() {
           {sorted.map(r => {
             const days = daysOut(r)
             return (
-              <div className="card card-pad" key={r.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, justifyContent: 'space-between' }}>
-                <div style={{ minWidth: 220 }}>
+              <div className="card card-pad" key={r.id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14 }}>
+                <div style={{ flex: '1 1 320px', minWidth: 220 }}>
                   <div className="flex items-center gap-10 mb-6">
                     <ShopTag>{r.type} #{r.serial_last4 || '—'}</ShopTag>
                     <RepairStatusBadge status={r.status} />
@@ -71,7 +71,7 @@ export default function ShopStatus() {
                   <p className="text-xs text-muted mt-6">Crew {r.crew || '—'} · Sent {fmtDate(r.date_sent_to_shop)}{r.eta ? ` · ETA ${fmtDate(r.eta)}` : ''}</p>
                   {r.notes && <p className="text-xs text-muted mt-6">Note: {r.notes}</p>}
                 </div>
-                <div className="flex items-center gap-10">
+                <div className="flex items-center gap-10" style={{ flex: '0 0 auto', marginLeft: 'auto' }}>
                   {days !== null && (
                     <span className={`badge ${days > 5 ? 'badge-out' : days > 2 ? 'badge-low' : 'badge-neutral'}`}>{days} day{days === 1 ? '' : 's'} out</span>
                   )}
