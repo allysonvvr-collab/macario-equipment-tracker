@@ -118,7 +118,7 @@ export default function UsersPage() {
         <td className="cell-strong">{u.name}</td>
         <td className="cell-muted">{u.role === 'crew' ? (u.username || '—') : (u.email || '—')}</td>
         <td><span className="badge badge-neutral">{u.role}</span></td>
-        <td>{u.crew || '—'}</td>
+        <td className="cell-muted">{u.crew || '—'}</td>
         <td>
           {u.role !== 'crew' ? (
             <span className="badge badge-stocked">All modules</span>

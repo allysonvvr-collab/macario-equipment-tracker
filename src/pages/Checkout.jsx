@@ -88,12 +88,12 @@ export default function Checkout() {
               <tbody>
                 {visible.map(r => (
                   <tr key={r.id} className="clickable" onClick={() => openEdit(r)}>
-                    <td>{fmtDate(r.date_out)}</td>
+                    <td className="cell-muted">{fmtDate(r.date_out)}</td>
                     <td className="cell-strong">{r.borrower}</td>
-                    <td>{r.crew || '—'}</td>
+                    <td className="cell-muted">{r.crew || '—'}</td>
                     <td>{r.type} #{r.serial_last4 || '—'}</td>
-                    <td>{r.reason || '—'}</td>
-                    <td>{r.okd_by || '—'}</td>
+                    <td className="cell-muted">{r.reason || '—'}</td>
+                    <td className="cell-muted">{r.okd_by || '—'}</td>
                     <td>
                       {r.date_returned ? fmtDate(r.date_returned) : (
                         daysOut(r) > 14
@@ -135,6 +135,7 @@ export default function Checkout() {
       {modalOpen && (
         <Modal title={editId ? 'Edit Checkout' : 'Check Out Equipment'} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSave}>
+            <div className="modal-section-label">Who &amp; What</div>
             <div className="field-row">
               <div className="field"><label>Date Out</label>
                 <input type="date" value={form.date_out} onChange={e => setForm({ ...form, date_out: e.target.value })} required />
@@ -164,6 +165,8 @@ export default function Checkout() {
                 <input value={form.serial_last4} onChange={e => setForm({ ...form, serial_last4: e.target.value })} />
               </div>
             </div>
+
+            <div className="modal-section-label">Details</div>
             <div className="field-row">
               <div className="field"><label>Reason</label>
                 <input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} placeholder="Backup during repair…" />

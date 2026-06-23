@@ -30,7 +30,7 @@ const COLUMNS = [
   { key: 'make_model', label: 'Make / Model' },
   { key: 'division', label: 'Division' },
   { key: 'status', label: 'Status' },
-  { key: 'current_hours', label: 'Hours' },
+  { key: 'current_hours', label: 'Hours', align: 'right' },
 ]
 
 export default function Equipment() {
@@ -117,7 +117,7 @@ export default function Equipment() {
   function SortHeader({ col }) {
     const active = sortKey === col.key
     return (
-      <th className={`sortable ${active ? 'active' : ''}`} onClick={() => handleSort(col.key)}>
+      <th className={`sortable ${active ? 'active' : ''} ${col.align === 'right' ? 'cell-num' : ''}`} onClick={() => handleSort(col.key)}>
         {col.label}
         <span className="sort-arrow">
           {active ? (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : <ChevronDown size={12} />}
@@ -182,11 +182,11 @@ export default function Equipment() {
                         {items.map(r => (
                           <tr key={r.id} className="clickable" onClick={() => navigate(`/equipment/${r.id}`)}>
                             <td className="cell-strong">{r.type}</td>
-                            <td>#{r.serial_last4 || '—'}</td>
+                            <td className="cell-muted">#{r.serial_last4 || '—'}</td>
                             <td>{r.make_model || '—'}</td>
-                            <td>{r.division}</td>
+                            <td className="cell-muted">{r.division}</td>
                             <td><EquipmentStatusBadge status={r.status} /></td>
-                            <td className="cell-muted">{r.current_hours ?? '—'}</td>
+                            <td className="cell-muted cell-num">{r.current_hours ?? '—'}</td>
                           </tr>
                         ))}
                       </tbody>

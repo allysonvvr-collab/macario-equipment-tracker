@@ -100,6 +100,16 @@ export default function FleetVehicleDetail() {
   const serviceDue = vehicle.next_service_mileage && vehicle.current_mileage
     && Number(vehicle.current_mileage) >= Number(vehicle.next_service_mileage)
 
+  const fleetRepairGroups = (() => {
+    const map = new Map()
+    for (const r of repairs) {
+      const key = r.date ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'No date'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(r)
+    }
+    return [...map.entries()]
+  })()
+
   return (
     <div>
       <button className="btn btn-ghost btn-sm mb-16" onClick={() => navigate('/fleet')}><ArrowLeft size={14} /> Back to Fleet</button>
@@ -140,6 +150,7 @@ export default function FleetVehicleDetail() {
           </div>
         ) : (
           <form onSubmit={handleSave}>
+            <div className="modal-section-label">The Vehicle</div>
             <div className="field"><label>Nickname</label>
               <input value={form.nickname || ''} onChange={e => setForm({ ...form, nickname: e.target.value })} />
             </div>
@@ -172,6 +183,8 @@ export default function FleetVehicleDetail() {
                 {['Active', 'In Repair', 'Retired'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
+
+            <div className="modal-section-label">Compliance &amp; Service</div>
             <div className="field-row">
               <div className="field"><label>Registration Expires</label>
                 <input type="date" value={form.registration_expiry || ''} onChange={e => setForm({ ...form, registration_expiry: e.target.value })} />
@@ -205,41 +218,39 @@ export default function FleetVehicleDetail() {
         {repairs.length === 0 ? (
           <EmptyState icon={<Wrench size={32} />} title="No repairs logged yet" sub="Add the first one for this vehicle." />
         ) : (
-          <>
-            <div className="table-wrap hide-mobile">
-              <table className="data-table">
-                <thead><tr><th>Date</th><th>Description</th><th>Invoice #</th><th>Mileage</th><th>Status</th><th>Amount</th></tr></thead>
-                <tbody>
-                  {repairs.map(r => (
-                    <tr key={r.id} className="clickable" onClick={() => openEditRepair(r)}>
-                      <td>{fmtDate(r.date)}</td>
-                      <td className="cell-strong">{r.description}</td>
-                      <td className="cell-muted">{r.invoice_number || '—'}</td>
-                      <td className="cell-muted">{r.mileage ? Number(r.mileage).toLocaleString() : '—'}</td>
-                      <td><span className={`badge ${r.status === 'Completed' ? 'badge-completed' : 'badge-progress'}`}>{r.status}</span></td>
-                      <td>{money(r.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="card-list show-mobile">
-              {repairs.map(r => (
-                <div className="row-card" key={r.id} onClick={() => openEditRepair(r)}>
-                  <div className="row-card-top"><b>{r.description}</b><span className={`badge ${r.status === 'Completed' ? 'badge-completed' : 'badge-progress'}`}>{r.status}</span></div>
-                  <div className="row-card-line"><span>Date</span><b>{fmtDate(r.date)}</b></div>
-                  <div className="row-card-line"><span>Amount</span><b>{money(r.amount)}</b></div>
-                  {r.mileage && <div className="row-card-line"><span>Mileage</span><b>{Number(r.mileage).toLocaleString()}</b></div>}
+          fleetRepairGroups.map(([month, items]) => (
+            <div key={month} className="mb-16">
+              <div className="text-xs text-muted mb-6" style={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em' }}>{month}</div>
+              {items.map(r => (
+                <div className="feed-card" key={r.id} onClick={() => openEditRepair(r)}>
+                  <div className={`feed-icon ${r.status === 'Completed' ? 'diy' : 'shop'}`}><Wrench size={17} /></div>
+                  <div className="feed-body">
+                    <div className="feed-title-row">
+                      <div>
+                        <div className="feed-title">{r.description}</div>
+                        <div className="feed-meta">
+                          <span>{fmtDate(r.date)}</span>
+                          {r.mileage && <span>Mileage <b>{Number(r.mileage).toLocaleString()}</b></span>}
+                          {r.invoice_number && <span>Invoice <b>{r.invoice_number}</b></span>}
+                        </div>
+                      </div>
+                      <div className="feed-right">
+                        <span className={`badge ${r.status === 'Completed' ? 'badge-completed' : 'badge-progress'}`}>{r.status}</span>
+                        <span className="feed-cost">{money(r.amount)}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
-          </>
+          ))
         )}
       </div>
 
       {repairModalOpen && (
         <Modal title={editRepairId ? 'Edit Repair' : 'Log Repair'} onClose={() => setRepairModalOpen(false)}>
           <form onSubmit={handleSaveRepair}>
+            <div className="modal-section-label">What Happened</div>
             <div className="field-row">
               <div className="field"><label>Date</label>
                 <input type="date" value={repairForm.date} onChange={e => setRepairForm({ ...repairForm, date: e.target.value })} required />
@@ -254,6 +265,8 @@ export default function FleetVehicleDetail() {
             <div className="field"><label>Repair / Description</label>
               <input value={repairForm.description} onChange={e => setRepairForm({ ...repairForm, description: e.target.value })} required autoFocus />
             </div>
+
+            <div className="modal-section-label">Cost &amp; Mileage</div>
             <div className="field-row">
               <div className="field"><label>Amount ($)</label>
                 <input type="number" min="0" step="0.01" value={repairForm.amount} onChange={e => setRepairForm({ ...repairForm, amount: e.target.value })} />

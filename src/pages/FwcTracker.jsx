@@ -136,17 +136,17 @@ export default function FwcTracker() {
           <div className="table-wrap hide-mobile">
             <table className="data-table">
               <thead>
-                <tr><th>Date</th><th>Technician</th><th>Sq Ft Scheduled</th><th>Rounded</th><th>Suggested Gal</th><th>Actual Gal</th><th>Status</th></tr>
+                <tr><th className="cell-muted">Date</th><th>Technician</th><th className="cell-num">Sq Ft Scheduled</th><th className="cell-num">Rounded</th><th className="cell-num">Suggested Gal</th><th className="cell-num">Actual Gal</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {filtered.map(r => (
                   <tr key={r.id} className="clickable" onClick={() => openEdit(r)}>
-                    <td>{fmtDate(r.app_date)}</td>
+                    <td className="cell-muted">{fmtDate(r.app_date)}</td>
                     <td className="cell-strong">{r.technician}</td>
-                    <td>{Number(r.turf_sqft_scheduled).toLocaleString()}</td>
-                    <td className="cell-muted">{Number(r.turf_sqft_rounded).toLocaleString()}</td>
-                    <td>{r.suggested_gallons}</td>
-                    <td>{r.actual_gallons_used ?? '—'}</td>
+                    <td className="cell-num">{Number(r.turf_sqft_scheduled).toLocaleString()}</td>
+                    <td className="cell-muted cell-num">{Number(r.turf_sqft_rounded).toLocaleString()}</td>
+                    <td className="cell-num">{r.suggested_gallons}</td>
+                    <td className="cell-strong cell-num">{r.actual_gallons_used ?? '—'}</td>
                     <td><FwcVarianceBadge variance={fwcVariance(r.actual_gallons_used, r.suggested_gallons)} /></td>
                   </tr>
                 ))}
@@ -168,6 +168,7 @@ export default function FwcTracker() {
       {modalOpen && (
         <Modal title={editId ? 'Edit Application' : 'Log Application'} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSave}>
+            <div className="modal-section-label">The Job</div>
             <div className="field-row">
               <div className="field"><label>Date</label>
                 <input type="date" value={form.app_date} onChange={e => setForm({ ...form, app_date: e.target.value })} required />
@@ -179,6 +180,8 @@ export default function FwcTracker() {
             <div className="field"><label>Turf Sq Ft Scheduled</label>
               <input type="number" min="0" value={form.turf_sqft_scheduled} onChange={e => setForm({ ...form, turf_sqft_scheduled: e.target.value })} required autoFocus />
             </div>
+
+            <div className="modal-section-label">Rate &amp; Result</div>
             <div className="field-row">
               <div className="field"><label>Rate (gal per 1,000 sq ft)</label>
                 <input type="number" min="0" step="0.1" value={form.rate_per_1000} onChange={e => setForm({ ...form, rate_per_1000: e.target.value })} />

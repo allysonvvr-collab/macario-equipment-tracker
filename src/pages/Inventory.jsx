@@ -142,17 +142,17 @@ export default function Inventory() {
           <div className="table-wrap hide-mobile">
             <table className="data-table">
               <thead>
-                <tr><th>Part</th><th>Division</th><th>Vendor</th><th>Price</th><th>On Hand</th><th>Reorder At</th><th>Status</th><th>Last Counted</th><th></th></tr>
+                <tr><th>Part</th><th className="cell-muted">Division</th><th className="cell-muted">Vendor</th><th className="cell-num">Price</th><th className="cell-num">On Hand</th><th className="cell-num">Reorder At</th><th>Status</th><th className="cell-muted">Last Counted</th><th></th></tr>
               </thead>
               <tbody>
                 {filtered.map(p => (
                   <tr key={p.id}>
                     <td className="cell-strong">{p.part_name}<div className="text-xs text-muted">{p.fits}</div></td>
-                    <td>{p.division}</td>
-                    <td>{p.vendor || '—'}</td>
-                    <td>{money(p.price)}</td>
-                    <td className="cell-strong">{p.on_hand}{p.unit ? ` ${p.unit}` : ''}</td>
-                    <td>{p.reorder_point}{p.unit ? ` ${p.unit}` : ''}</td>
+                    <td className="cell-muted">{p.division}</td>
+                    <td className="cell-muted">{p.vendor || '—'}</td>
+                    <td className="cell-num cell-muted">{money(p.price)}</td>
+                    <td className="cell-strong cell-num">{p.on_hand}{p.unit ? ` ${p.unit}` : ''}</td>
+                    <td className="cell-muted cell-num">{p.reorder_point}{p.unit ? ` ${p.unit}` : ''}</td>
                     <td><PartStatusBadge statusKey={partStatus(p)} /></td>
                     <td className="cell-muted">{p.last_counted_at ? fmtDate(p.last_counted_at.slice(0, 10)) : '—'}</td>
                     <td>
@@ -189,6 +189,7 @@ export default function Inventory() {
       {addOpen && (
         <Modal title={editId ? 'Edit Part' : 'Add Part'} onClose={() => setAddOpen(false)}>
           <form onSubmit={handleSave}>
+            <div className="modal-section-label">What It Is</div>
             <div className="field"><label>Part Name</label>
               <input value={form.part_name} onChange={e => setForm({ ...form, part_name: e.target.value })} required />
             </div>
@@ -214,6 +215,8 @@ export default function Inventory() {
             <div className="field"><label>Vendor</label>
               <input value={form.vendor} onChange={e => setForm({ ...form, vendor: e.target.value })} />
             </div>
+
+            <div className="modal-section-label">Stock Levels</div>
             <div className="field-row">
               <div className="field"><label>Price ($)</label>
                 <input type="number" min="0" step="0.01" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} />

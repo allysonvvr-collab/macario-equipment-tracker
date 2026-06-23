@@ -88,7 +88,7 @@ export default function MowerHours() {
       ) : (
         <div className="table-wrap hide-mobile">
           <table className="data-table">
-            <thead><tr><th>Mower</th><th>Crew</th><th>Current Hours</th><th>Recent Trend</th><th>Last Logged</th><th></th></tr></thead>
+            <thead><tr><th>Mower</th><th className="cell-muted">Crew</th><th className="cell-num">Current Hours</th><th>Recent Trend</th><th className="cell-muted">Last Logged</th><th></th></tr></thead>
             <tbody>
               {mowers.map(m => {
                 const recent = recentByMower[m.id] || []
@@ -96,8 +96,8 @@ export default function MowerHours() {
                 return (
                   <tr key={m.id}>
                     <td className="cell-strong">#{m.serial_last4 || '—'} {m.make_model ? `(${m.make_model})` : ''}</td>
-                    <td>{m.crew_assigned || '—'}</td>
-                    <td>{m.current_hours ?? '—'}</td>
+                    <td className="cell-muted">{m.crew_assigned || '—'}</td>
+                    <td className="cell-num cell-strong">{m.current_hours ?? '—'}</td>
                     <td><Sparkline values={recent.map(r => r.hours_reading)} /></td>
                     <td className="cell-muted">{last ? fmtDate(last.log_date) : 'Never'}</td>
                     <td>
@@ -168,12 +168,12 @@ export default function MowerHours() {
           {historyRows.length === 0 ? <p className="text-muted text-sm">No readings logged yet.</p> : (
             <div className="table-wrap">
               <table className="data-table">
-                <thead><tr><th>Date</th><th>Hours</th><th>By</th><th></th></tr></thead>
+                <thead><tr><th className="cell-muted">Date</th><th className="cell-num">Hours</th><th>By</th><th></th></tr></thead>
                 <tbody>
                   {historyRows.map(h => (
                     <tr key={h.id}>
-                      <td>{fmtDate(h.log_date)}</td>
-                      <td className="cell-strong">{h.hours_reading}</td>
+                      <td className="cell-muted">{fmtDate(h.log_date)}</td>
+                      <td className="cell-strong cell-num">{h.hours_reading}</td>
                       <td className="cell-muted">{h.logged_by || '—'}</td>
                       <td>
                         <div className="flex gap-6">

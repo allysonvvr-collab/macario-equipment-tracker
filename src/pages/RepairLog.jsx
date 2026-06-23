@@ -15,6 +15,12 @@ const BLANK = {
   total_cost: '', notes: '',
 }
 
+function monthLabel(dateStr) {
+  if (!dateStr) return 'No date'
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
 export default function RepairLog() {
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -29,6 +35,7 @@ export default function RepairLog() {
   const [editId, setEditId] = useState(null)
   const [form, setForm] = useState(BLANK)
   const [saving, setSaving] = useState(false)
+  const [collapsed, setCollapsed] = useState(new Set())
 
   useEffect(() => { load() }, [])
 
@@ -61,6 +68,25 @@ export default function RepairLog() {
     }
     return true
   })
+
+  // Group into months, newest first, in the order rows already arrive (sorted by date desc from query)
+  const groups = useMemo(() => {
+    const map = new Map()
+    for (const r of filtered) {
+      const key = monthLabel(r.date)
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(r)
+    }
+    return [...map.entries()]
+  }, [filtered])
+
+  function toggleGroup(key) {
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
 
   function openAdd() { setForm({ ...BLANK, performed_by: user?.name || '' }); setEditId(null); setModalOpen(true) }
   function openEdit(r) {
@@ -144,44 +170,51 @@ export default function RepairLog() {
       {loading ? <p className="text-muted">Loading…</p> : filtered.length === 0 ? (
         <EmptyState icon={<Wrench size={36} />} title="No repairs found" sub="Log your first repair to get started." />
       ) : (
-        <>
-          <div className="table-wrap hide-mobile">
-            <table className="data-table">
-              <thead>
-                <tr><th>Date</th><th>Type / Serial</th><th>Crew</th><th>Repair</th><th>By</th><th>DIY/Shop</th><th>Status</th><th>Total</th></tr>
-              </thead>
-              <tbody>
-                {filtered.map(r => (
-                  <tr key={r.id} className="clickable" onClick={() => openEdit(r)}>
-                    <td>{fmtDate(r.date)}</td>
-                    <td className="cell-strong">{r.type}{r.serial_last4 ? ` #${r.serial_last4}` : ''}</td>
-                    <td>{r.crew || '—'}</td>
-                    <td>{r.repair_type}</td>
-                    <td>{r.performed_by || '—'}</td>
-                    <td>{r.diy_or_shop}</td>
-                    <td><RepairStatusBadge status={r.status} /></td>
-                    <td>{money(r.total_cost)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="card-list show-mobile">
-            {filtered.map(r => (
-              <div className="row-card" key={r.id} onClick={() => openEdit(r)}>
-                <div className="row-card-top"><b>{r.type}{r.serial_last4 ? ` #${r.serial_last4}` : ''} — {r.repair_type}</b><RepairStatusBadge status={r.status} /></div>
-                <div className="row-card-line"><span>Date</span><b>{fmtDate(r.date)}</b></div>
-                <div className="row-card-line"><span>By</span><b>{r.performed_by || '—'} ({r.diy_or_shop})</b></div>
-                <div className="row-card-line"><span>Total</span><b>{money(r.total_cost)}</b></div>
+        groups.map(([month, items]) => {
+          const isCollapsed = collapsed.has(month)
+          const monthTotal = items.reduce((s, r) => s + Number(r.total_cost || 0), 0)
+          return (
+            <div key={month}>
+              <div className={`group-header ${isCollapsed ? 'collapsed' : ''}`} onClick={() => toggleGroup(month)}>
+                <Wrench size={14} className="chev" />
+                {month}
+                <span className="group-count">{items.length} repair{items.length === 1 ? '' : 's'} · {money(monthTotal)}</span>
               </div>
-            ))}
-          </div>
-        </>
+              {!isCollapsed && (
+                <div className="group-body">
+                  {items.map(r => (
+                    <div className="feed-card" key={r.id} onClick={() => openEdit(r)}>
+                      <div className={`feed-icon ${r.diy_or_shop === 'Shop' ? 'shop' : 'diy'}`}><Wrench size={17} /></div>
+                      <div className="feed-body">
+                        <div className="feed-title-row">
+                          <div>
+                            <div className="feed-title">{r.type}{r.serial_last4 ? ` #${r.serial_last4}` : ''} — {r.repair_type}</div>
+                            <div className="feed-meta">
+                              <span>{fmtDate(r.date)}</span>
+                              <span>Crew <b>{r.crew || '—'}</b></span>
+                              <span>By <b>{r.performed_by || '—'}</b></span>
+                              {r.diy_or_shop === 'Shop' && r.shop_name && <span>Shop <b>{r.shop_name}</b></span>}
+                            </div>
+                          </div>
+                          <div className="feed-right">
+                            <RepairStatusBadge status={r.status} />
+                            <span className="feed-cost">{money(r.total_cost)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })
       )}
 
       {modalOpen && (
         <Modal title={editId ? 'Edit Repair' : 'Log a Repair'} onClose={() => setModalOpen(false)} width="640px">
           <form onSubmit={handleSave}>
+            <div className="modal-section-label">What Happened</div>
             <div className="field-row">
               <div className="field"><label>Date</label>
                 <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} required />
@@ -211,6 +244,8 @@ export default function RepairLog() {
                 <input value={form.performed_by || ''} onChange={e => setForm({ ...form, performed_by: e.target.value })} />
               </div>
             </div>
+
+            <div className="modal-section-label">Who &amp; Where</div>
             <div className="field-row">
               <div className="field"><label>DIY or Shop</label>
                 <select value={form.diy_or_shop} onChange={e => setForm({ ...form, diy_or_shop: e.target.value })}>
@@ -251,6 +286,7 @@ export default function RepairLog() {
               </div>
             )}
 
+            <div className="modal-section-label">Cost</div>
             {form.diy_or_shop === 'DIY' && (
               <div className="field-row">
                 <div className="field"><label>Time (minutes)</label>
@@ -261,7 +297,6 @@ export default function RepairLog() {
                 </div>
               </div>
             )}
-
             <div className="field-row">
               <div className="field"><label>Parts Cost ($)</label>
                 <input type="number" min="0" step="0.01" value={form.parts_cost} onChange={e => setForm({ ...form, parts_cost: e.target.value })} />

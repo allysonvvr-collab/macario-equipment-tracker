@@ -140,6 +140,7 @@ export default function Fleet() {
       {modalOpen && (
         <Modal title="Add Vehicle" onClose={() => setModalOpen(false)} width="560px">
           <form onSubmit={handleSave}>
+            <div className="modal-section-label">The Vehicle</div>
             <div className="field"><label>Nickname</label>
               <input value={form.nickname} onChange={e => setForm({ ...form, nickname: e.target.value })} placeholder="e.g. FWC1 Truck" required />
             </div>
@@ -172,6 +173,8 @@ export default function Fleet() {
                 {['Active', 'In Repair', 'Retired'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
+
+            <div className="modal-section-label">Compliance &amp; Service</div>
             <div className="field-row">
               <div className="field"><label>Registration Expires</label>
                 <input type="date" value={form.registration_expiry} onChange={e => setForm({ ...form, registration_expiry: e.target.value })} />

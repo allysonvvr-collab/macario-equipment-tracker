@@ -136,6 +136,7 @@ export default function Orders() {
       {modalOpen && (
         <Modal title={editId ? 'Edit Order' : 'Add Order'} onClose={() => setModalOpen(false)} width="600px">
           <form onSubmit={handleSave}>
+            <div className="modal-section-label">What &amp; Where</div>
             <div className="field-row">
               <div className="field"><label>Category</label>
                 <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
@@ -154,6 +155,8 @@ export default function Orders() {
                 <input value={form.product} onChange={e => setForm({ ...form, product: e.target.value })} required />
               </div>
             </div>
+
+            <div className="modal-section-label">Quantity &amp; Cost</div>
             <div className="field-row">
               <div className="field"><label>Qty</label>
                 <input type="number" min="0" step="0.01" value={form.qty} onChange={e => setForm({ ...form, qty: e.target.value })} />
@@ -170,6 +173,8 @@ export default function Orders() {
                 <input type="number" min="0" step="0.01" value={form.cost} onChange={e => setForm({ ...form, cost: e.target.value })} />
               </div>
             </div>
+
+            <div className="modal-section-label">Status &amp; Dates</div>
             <div className="field-row">
               <div className="field"><label>Who Ordered</label>
                 <input value={form.who_ordered} onChange={e => setForm({ ...form, who_ordered: e.target.value })} />
