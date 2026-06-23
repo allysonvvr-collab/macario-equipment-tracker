@@ -101,4 +101,5 @@ export const MODULES = [
   { key: 'checkout', label: 'Checkout Log' },
   { key: 'fwc', label: 'FWC Tracker' },
   { key: 'orders', label: 'Orders' },
+  { key: 'fleet', label: 'Fleet' },
 ]

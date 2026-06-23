@@ -15,6 +15,7 @@ const PAGE_TITLES = {
   '/hours': 'Mower Hours',
   '/inventory': 'Inventory & Parts',
   '/checkout': 'Equipment Checkout',
+  '/fleet': 'Fleet',
   '/fwc': 'FWC Chemical Tracker',
   '/orders': 'Orders',
   '/users': 'Users & Logins',
@@ -55,6 +56,9 @@ export default function Layout() {
     { to: '/inventory', label: 'Inventory & Parts', icon: Package, count: counts.lowStock, module: 'inventory' },
     { to: '/checkout', label: 'Checkout Log', icon: ArrowRightLeft, module: 'checkout' },
   ].filter(item => !item.module || canAccess(item.module))
+  const fleetItems = [
+    { to: '/fleet', label: 'Fleet', icon: Truck, module: 'fleet' },
+  ].filter(item => canAccess(item.module))
   const fieldItems = [
     { to: '/fwc', label: 'FWC Tracker', icon: Droplets, module: 'fwc' },
     { to: '/orders', label: 'Orders', icon: Package2, count: counts.pendingOrders, module: 'orders' },
@@ -83,6 +87,18 @@ export default function Layout() {
               {!!count && <span className="badge-count">{count}</span>}
             </NavLink>
           ))}
+
+          {fleetItems.length > 0 && (
+            <>
+              <div className="sidebar-section-label">Fleet</div>
+              {fleetItems.map(({ to, label, icon: Icon }) => (
+                <NavLink key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Icon size={16} />
+                  {label}
+                </NavLink>
+              ))}
+            </>
+          )}
 
           {fieldItems.length > 0 && (
             <>

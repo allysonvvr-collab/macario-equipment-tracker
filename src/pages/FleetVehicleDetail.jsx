@@ -1,0 +1,243 @@
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, Save, Trash2, Wrench, Plus } from 'lucide-react'
+import { supabase } from '../lib/supabaseClient'
+import { money, fmtDate, todayISO } from '../lib/helpers'
+import { EquipmentStatusBadge, EmptyState } from '../components/Badges'
+import { Modal } from '../components/Modal'
+import { useAuth } from '../context/AuthContext'
+
+const BLANK_REPAIR = { date: todayISO(), description: '', amount: '', invoice_number: '', mileage: '', status: 'Completed', notes: '' }
+
+export default function FleetVehicleDetail() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { user, isAdmin } = useAuth()
+  const [vehicle, setVehicle] = useState(null)
+  const [repairs, setRepairs] = useState([])
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [repairModalOpen, setRepairModalOpen] = useState(false)
+  const [editRepairId, setEditRepairId] = useState(null)
+  const [repairForm, setRepairForm] = useState(BLANK_REPAIR)
+
+  useEffect(() => { load() }, [id])
+
+  async function load() {
+    const { data: v } = await supabase.from('fleet_vehicles').select('*').eq('id', id).single()
+    setVehicle(v); setForm(v)
+    const { data: r } = await supabase.from('fleet_repairs').select('*').eq('vehicle_id', id).order('date', { ascending: false })
+    setRepairs(r || [])
+  }
+
+  async function handleSave(e) {
+    e.preventDefault()
+    setSaving(true)
+    await supabase.from('fleet_vehicles').update({
+      nickname: form.nickname, year: form.year, make: form.make, model: form.model,
+      crew_assigned: form.crew_assigned, license_plate: form.license_plate, vin: form.vin,
+      status: form.status, notes: form.notes, updated_at: new Date().toISOString(),
+    }).eq('id', id)
+    setSaving(false); setEditing(false); load()
+  }
+
+  async function handleDelete() {
+    if (!window.confirm('Delete this vehicle? This cannot be undone.')) return
+    await supabase.from('fleet_vehicles').delete().eq('id', id)
+    navigate('/fleet')
+  }
+
+  function openAddRepair() { setRepairForm({ ...BLANK_REPAIR, mileage: vehicle?.current_mileage ?? '' }); setEditRepairId(null); setRepairModalOpen(true) }
+  function openEditRepair(r) {
+    setRepairForm({
+      date: r.date, description: r.description, amount: r.amount ?? '', invoice_number: r.invoice_number || '',
+      mileage: r.mileage ?? '', status: r.status, notes: r.notes || '',
+    })
+    setEditRepairId(r.id); setRepairModalOpen(true)
+  }
+
+  async function handleSaveRepair(e) {
+    e.preventDefault()
+    setSaving(true)
+    if (editRepairId) {
+      await supabase.from('fleet_repairs').update({
+        date: repairForm.date, description: repairForm.description,
+        amount: repairForm.amount === '' ? null : Number(repairForm.amount),
+        invoice_number: repairForm.invoice_number || null,
+        mileage: repairForm.mileage === '' ? null : Number(repairForm.mileage),
+        status: repairForm.status, notes: repairForm.notes || null, updated_at: new Date().toISOString(),
+      }).eq('id', editRepairId)
+    } else {
+      await supabase.rpc('log_fleet_repair', {
+        p_vehicle_id: id, p_date: repairForm.date, p_description: repairForm.description,
+        p_amount: repairForm.amount === '' ? null : Number(repairForm.amount),
+        p_invoice_number: repairForm.invoice_number || null,
+        p_mileage: repairForm.mileage === '' ? null : Number(repairForm.mileage),
+        p_status: repairForm.status, p_notes: repairForm.notes || null, p_created_by: user?.name || null,
+      })
+    }
+    setSaving(false); setRepairModalOpen(false); load()
+  }
+
+  if (!vehicle) return <p className="text-muted">Loading…</p>
+
+  const totalCost = repairs.reduce((s, r) => s + Number(r.amount || 0), 0)
+
+  return (
+    <div>
+      <button className="btn btn-ghost btn-sm mb-16" onClick={() => navigate('/fleet')}><ArrowLeft size={14} /> Back to Fleet</button>
+
+      <div className="card card-pad mb-16">
+        <div className="flex justify-between items-center mb-16">
+          <div>
+            <div className="flex items-center gap-10">
+              <h2>{vehicle.year} {vehicle.make} {vehicle.model}</h2>
+              <EquipmentStatusBadge status={vehicle.status} />
+            </div>
+            <p className="text-sm text-muted mt-6">{vehicle.nickname}</p>
+          </div>
+          {isAdmin && !editing && (
+            <div className="flex gap-10">
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>Edit</button>
+              <button className="btn btn-danger btn-sm" onClick={handleDelete}><Trash2 size={14} /></button>
+            </div>
+          )}
+        </div>
+
+        {!editing ? (
+          <div className="kpi-grid" style={{ marginBottom: 0 }}>
+            <div className="kpi-card"><div className="kpi-label">Crew</div><div className="kpi-value" style={{ fontSize: '1.1rem' }}>{vehicle.crew_assigned || '—'}</div></div>
+            <div className="kpi-card"><div className="kpi-label">Current Mileage</div><div className="kpi-value" style={{ fontSize: '1.3rem' }}>{vehicle.current_mileage ? Number(vehicle.current_mileage).toLocaleString() : '—'}</div></div>
+            <div className="kpi-card"><div className="kpi-label">Total Repair Cost</div><div className="kpi-value">{money(totalCost)}</div></div>
+            <div className="kpi-card"><div className="kpi-label">Repairs Logged</div><div className="kpi-value">{repairs.length}</div></div>
+          </div>
+        ) : (
+          <form onSubmit={handleSave}>
+            <div className="field"><label>Nickname</label>
+              <input value={form.nickname || ''} onChange={e => setForm({ ...form, nickname: e.target.value })} />
+            </div>
+            <div className="field-row">
+              <div className="field"><label>Year</label>
+                <input value={form.year || ''} onChange={e => setForm({ ...form, year: e.target.value })} />
+              </div>
+              <div className="field"><label>Crew Assigned</label>
+                <input value={form.crew_assigned || ''} onChange={e => setForm({ ...form, crew_assigned: e.target.value })} />
+              </div>
+            </div>
+            <div className="field-row">
+              <div className="field"><label>Make</label>
+                <input value={form.make || ''} onChange={e => setForm({ ...form, make: e.target.value })} />
+              </div>
+              <div className="field"><label>Model</label>
+                <input value={form.model || ''} onChange={e => setForm({ ...form, model: e.target.value })} />
+              </div>
+            </div>
+            <div className="field-row">
+              <div className="field"><label>License Plate</label>
+                <input value={form.license_plate || ''} onChange={e => setForm({ ...form, license_plate: e.target.value })} />
+              </div>
+              <div className="field"><label>VIN</label>
+                <input value={form.vin || ''} onChange={e => setForm({ ...form, vin: e.target.value })} />
+              </div>
+            </div>
+            <div className="field"><label>Status</label>
+              <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                {['Active', 'In Repair', 'Retired'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="field"><label>Notes</label>
+              <textarea value={form.notes || ''} onChange={e => setForm({ ...form, notes: e.target.value })} />
+            </div>
+            <div className="flex justify-between gap-10 mt-16">
+              <button type="button" className="btn btn-ghost" onClick={() => { setEditing(false); setForm(vehicle) }}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}><Save size={14} /> {saving ? 'Saving…' : 'Save Changes'}</button>
+            </div>
+          </form>
+        )}
+
+        {vehicle.notes && !editing && <p className="text-sm text-muted mt-16">Note: {vehicle.notes}</p>}
+      </div>
+
+      <div className="card card-pad">
+        <div className="flex justify-between items-center mb-16">
+          <span className="section-title"><Wrench size={17} /> Repair History</span>
+          <button className="btn btn-gold btn-sm" onClick={openAddRepair}><Plus size={14} /> Log Repair</button>
+        </div>
+
+        {repairs.length === 0 ? (
+          <EmptyState icon={<Wrench size={32} />} title="No repairs logged yet" sub="Add the first one for this vehicle." />
+        ) : (
+          <>
+            <div className="table-wrap hide-mobile">
+              <table className="data-table">
+                <thead><tr><th>Date</th><th>Description</th><th>Invoice #</th><th>Mileage</th><th>Status</th><th>Amount</th></tr></thead>
+                <tbody>
+                  {repairs.map(r => (
+                    <tr key={r.id} className="clickable" onClick={() => openEditRepair(r)}>
+                      <td>{fmtDate(r.date)}</td>
+                      <td className="cell-strong">{r.description}</td>
+                      <td className="cell-muted">{r.invoice_number || '—'}</td>
+                      <td className="cell-muted">{r.mileage ? Number(r.mileage).toLocaleString() : '—'}</td>
+                      <td><span className={`badge ${r.status === 'Completed' ? 'badge-completed' : 'badge-progress'}`}>{r.status}</span></td>
+                      <td>{money(r.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="card-list show-mobile">
+              {repairs.map(r => (
+                <div className="row-card" key={r.id} onClick={() => openEditRepair(r)}>
+                  <div className="row-card-top"><b>{r.description}</b><span className={`badge ${r.status === 'Completed' ? 'badge-completed' : 'badge-progress'}`}>{r.status}</span></div>
+                  <div className="row-card-line"><span>Date</span><b>{fmtDate(r.date)}</b></div>
+                  <div className="row-card-line"><span>Amount</span><b>{money(r.amount)}</b></div>
+                  {r.mileage && <div className="row-card-line"><span>Mileage</span><b>{Number(r.mileage).toLocaleString()}</b></div>}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {repairModalOpen && (
+        <Modal title={editRepairId ? 'Edit Repair' : 'Log Repair'} onClose={() => setRepairModalOpen(false)}>
+          <form onSubmit={handleSaveRepair}>
+            <div className="field-row">
+              <div className="field"><label>Date</label>
+                <input type="date" value={repairForm.date} onChange={e => setRepairForm({ ...repairForm, date: e.target.value })} required />
+              </div>
+              <div className="field"><label>Status</label>
+                <select value={repairForm.status} onChange={e => setRepairForm({ ...repairForm, status: e.target.value })}>
+                  <option value="Completed">Completed</option>
+                  <option value="Scheduled">Scheduled</option>
+                </select>
+              </div>
+            </div>
+            <div className="field"><label>Repair / Description</label>
+              <input value={repairForm.description} onChange={e => setRepairForm({ ...repairForm, description: e.target.value })} required autoFocus />
+            </div>
+            <div className="field-row">
+              <div className="field"><label>Amount ($)</label>
+                <input type="number" min="0" step="0.01" value={repairForm.amount} onChange={e => setRepairForm({ ...repairForm, amount: e.target.value })} />
+              </div>
+              <div className="field"><label>Invoice #</label>
+                <input value={repairForm.invoice_number} onChange={e => setRepairForm({ ...repairForm, invoice_number: e.target.value })} />
+              </div>
+            </div>
+            <div className="field"><label>Mileage</label>
+              <input type="number" min="0" value={repairForm.mileage} onChange={e => setRepairForm({ ...repairForm, mileage: e.target.value })} />
+            </div>
+            <div className="field"><label>Notes</label>
+              <textarea value={repairForm.notes} onChange={e => setRepairForm({ ...repairForm, notes: e.target.value })} placeholder="Optional" />
+            </div>
+            <div className="flex justify-between gap-10 mt-16">
+              <button type="button" className="btn btn-ghost" onClick={() => setRepairModalOpen(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editRepairId ? 'Save Changes' : 'Log Repair')}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  )
+}

@@ -12,6 +12,8 @@ import Inventory from './pages/Inventory'
 import Checkout from './pages/Checkout'
 import FwcTracker from './pages/FwcTracker'
 import Orders from './pages/Orders'
+import Fleet from './pages/Fleet'
+import FleetVehicleDetail from './pages/FleetVehicleDetail'
 import UsersPage from './pages/Users'
 
 // Wraps a page so visiting the URL directly respects the same module
@@ -41,6 +43,8 @@ export default function App() {
         <Route path="/checkout" element={<Guard moduleKey="checkout"><Checkout /></Guard>} />
         <Route path="/fwc" element={<Guard moduleKey="fwc"><FwcTracker /></Guard>} />
         <Route path="/orders" element={<Guard moduleKey="orders"><Orders /></Guard>} />
+        <Route path="/fleet" element={<Guard moduleKey="fleet"><Fleet /></Guard>} />
+        <Route path="/fleet/:id" element={<Guard moduleKey="fleet"><FleetVehicleDetail /></Guard>} />
         <Route path="/users" element={isAdmin ? <UsersPage /> : <Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
