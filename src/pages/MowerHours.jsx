@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Clock, Plus } from 'lucide-react'
+import { Clock, Plus, History, Trash2, Pencil } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { fmtDate, todayISO } from '../lib/helpers'
 import { EmptyState } from '../components/Badges'
@@ -12,11 +12,14 @@ export default function MowerHours() {
   const [mowers, setMowers] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalEq, setModalEq] = useState(null)
+  const [editId, setEditId] = useState(null)
   const [reading, setReading] = useState('')
   const [logDate, setLogDate] = useState(todayISO())
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
   const [recentByMower, setRecentByMower] = useState({}) // id -> [{log_date, hours_reading}, ...] last 5, oldest->newest
+  const [historyEq, setHistoryEq] = useState(null)
+  const [historyRows, setHistoryRows] = useState([])
 
   useEffect(() => { load() }, [])
 
@@ -36,17 +39,42 @@ export default function MowerHours() {
     setLoading(false)
   }
 
-  function openLog(eq) { setModalEq(eq); setReading(eq.current_hours ?? ''); setLogDate(todayISO()); setNotes('') }
+  function openLog(eq) { setModalEq(eq); setEditId(null); setReading(eq.current_hours ?? ''); setLogDate(todayISO()); setNotes('') }
+  function openEditEntry(eq, entry) {
+    setModalEq(eq); setEditId(entry.id); setReading(entry.hours_reading); setLogDate(entry.log_date); setNotes(entry.notes || '')
+  }
 
   async function handleSave(e) {
     e.preventDefault()
     if (reading === '') return
     setSaving(true)
-    await supabase.rpc('log_equipment_hours', {
-      p_equipment_id: modalEq.id, p_hours: Number(reading), p_logged_by: user?.name || null,
-      p_notes: notes || null, p_log_date: logDate,
-    })
-    setSaving(false); setModalEq(null); load()
+    if (editId) {
+      await supabase.from('equipment_hours_log').update({
+        hours_reading: Number(reading), log_date: logDate, notes: notes || null,
+      }).eq('id', editId)
+    } else {
+      await supabase.from('equipment_hours_log').insert([{
+        equipment_id: modalEq.id, hours_reading: Number(reading), log_date: logDate,
+        logged_by: user?.name || null, notes: notes || null,
+      }])
+    }
+    setSaving(false); setModalEq(null)
+    if (historyEq) openHistory(historyEq)
+    load()
+  }
+
+  async function handleDeleteEntry(entryId) {
+    if (!window.confirm('Delete this hours reading? This cannot be undone.')) return
+    await supabase.from('equipment_hours_log').delete().eq('id', entryId)
+    setModalEq(null)
+    if (historyEq) openHistory(historyEq)
+    load()
+  }
+
+  async function openHistory(eq) {
+    setHistoryEq(eq)
+    const { data } = await supabase.from('equipment_hours_log').select('*').eq('equipment_id', eq.id).order('log_date', { ascending: false })
+    setHistoryRows(data || [])
   }
 
   if (loading) return <p className="text-muted">Loading…</p>
@@ -72,7 +100,12 @@ export default function MowerHours() {
                     <td>{m.current_hours ?? '—'}</td>
                     <td><Sparkline values={recent.map(r => r.hours_reading)} /></td>
                     <td className="cell-muted">{last ? fmtDate(last.log_date) : 'Never'}</td>
-                    <td><button className="btn btn-ghost btn-sm" onClick={() => openLog(m)}><Plus size={13} /> Log Hours</button></td>
+                    <td>
+                      <div className="flex gap-6">
+                        <button className="btn btn-ghost btn-sm" onClick={() => openLog(m)}><Plus size={13} /> Log Hours</button>
+                        <button className="icon-btn" onClick={() => openHistory(m)} title="History"><History size={14} /></button>
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
@@ -96,14 +129,17 @@ export default function MowerHours() {
                   <Sparkline values={recent.map(r => r.hours_reading)} />
                 </div>
               )}
-              <button className="btn btn-ghost btn-sm w-full mt-10" onClick={() => openLog(m)}><Plus size={13} /> Log Hours</button>
+              <div className="flex gap-6 mt-10">
+                <button className="btn btn-ghost btn-sm w-full" onClick={() => openLog(m)}><Plus size={13} /> Log Hours</button>
+                <button className="icon-btn" onClick={() => openHistory(m)}><History size={14} /></button>
+              </div>
             </div>
           )
         })}
       </div>
 
       {modalEq && (
-        <Modal title={`Log Hours — #${modalEq.serial_last4 || ''}`} onClose={() => setModalEq(null)}>
+        <Modal title={editId ? `Edit Reading — #${modalEq.serial_last4 || ''}` : `Log Hours — #${modalEq.serial_last4 || ''}`} onClose={() => setModalEq(null)}>
           <form onSubmit={handleSave}>
             <div className="field-row">
               <div className="field"><label>Date</label>
@@ -118,9 +154,39 @@ export default function MowerHours() {
             </div>
             <div className="flex justify-between gap-10 mt-16">
               <button type="button" className="btn btn-ghost" onClick={() => setModalEq(null)}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Reading'}</button>
+              <div className="flex gap-10">
+                {editId && <button type="button" className="btn btn-danger" onClick={() => handleDeleteEntry(editId)}><Trash2 size={14} /> Delete</button>}
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save Changes' : 'Save Reading')}</button>
+              </div>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {historyEq && (
+        <Modal title={`Hours History — #${historyEq.serial_last4 || ''}`} onClose={() => setHistoryEq(null)} width="520px">
+          {historyRows.length === 0 ? <p className="text-muted text-sm">No readings logged yet.</p> : (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead><tr><th>Date</th><th>Hours</th><th>By</th><th></th></tr></thead>
+                <tbody>
+                  {historyRows.map(h => (
+                    <tr key={h.id}>
+                      <td>{fmtDate(h.log_date)}</td>
+                      <td className="cell-strong">{h.hours_reading}</td>
+                      <td className="cell-muted">{h.logged_by || '—'}</td>
+                      <td>
+                        <div className="flex gap-6">
+                          <button className="icon-btn" onClick={() => openEditEntry(historyEq, h)} title="Edit"><Pencil size={13} /></button>
+                          <button className="icon-btn" onClick={() => handleDeleteEntry(h.id)} title="Delete"><Trash2 size={13} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Modal>
       )}
     </div>

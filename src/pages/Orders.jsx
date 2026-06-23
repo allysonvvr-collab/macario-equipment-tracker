@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Package2, CheckCircle2 } from 'lucide-react'
+import { Plus, Package2, CheckCircle2, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { fmtDate, money, todayISO, ORDER_CATEGORIES, ORDER_STATUSES } from '../lib/helpers'
 import { EmptyState } from '../components/Badges'
@@ -64,6 +64,13 @@ export default function Orders() {
     if (editId) await supabase.from('orders').update(payload).eq('id', editId)
     else await supabase.from('orders').insert([payload])
     setSaving(false); setModalOpen(false); load()
+  }
+
+  async function handleDelete() {
+    if (!editId) return
+    if (!window.confirm('Delete this order? This cannot be undone.')) return
+    await supabase.from('orders').delete().eq('id', editId)
+    setModalOpen(false); load()
   }
 
   async function markReceived(r) {
@@ -189,7 +196,10 @@ export default function Orders() {
             </div>
             <div className="flex justify-between gap-10 mt-16">
               <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save Changes' : 'Add Order')}</button>
+              <div className="flex gap-10">
+                {editId && <button type="button" className="btn btn-danger" onClick={handleDelete}><Trash2 size={14} /> Delete</button>}
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save Changes' : 'Add Order')}</button>
+              </div>
             </div>
           </form>
         </Modal>

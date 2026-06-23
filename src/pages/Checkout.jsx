@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Plus, ArrowRightLeft, CheckCircle2 } from 'lucide-react'
+import { Plus, ArrowRightLeft, CheckCircle2, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { fmtDate, todayISO, EQUIPMENT_TYPES } from '../lib/helpers'
 import { EmptyState } from '../components/Badges'
 import { Modal } from '../components/Modal'
 
-const BLANK = { date_out: todayISO(), borrower: '', crew: '', equipment_id: '', serial_last4: '', type: 'Mower', reason: '', okd_by: '', notes: '' }
+const BLANK = { date_out: todayISO(), borrower: '', crew: '', equipment_id: '', serial_last4: '', type: 'Mower', reason: '', okd_by: '', date_returned: '', notes: '' }
 
 export default function Checkout() {
   const [rows, setRows] = useState([])
   const [equipment, setEquipment] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editId, setEditId] = useState(null)
   const [form, setForm] = useState(BLANK)
   const [saving, setSaving] = useState(false)
   const [showReturned, setShowReturned] = useState(true)
@@ -33,11 +34,26 @@ export default function Checkout() {
     setForm(f => ({ ...f, equipment_id: id, type: eq?.type || f.type, serial_last4: eq?.serial_last4 || f.serial_last4 }))
   }
 
+  function openAdd() { setForm(BLANK); setEditId(null); setModalOpen(true) }
+  function openEdit(r) {
+    setForm({ ...BLANK, ...r, equipment_id: r.equipment_id || '', date_returned: r.date_returned || '' })
+    setEditId(r.id); setModalOpen(true)
+  }
+
   async function handleSave(e) {
     e.preventDefault()
     setSaving(true)
-    await supabase.from('equipment_checkout').insert([{ ...form, equipment_id: form.equipment_id || null }])
+    const payload = { ...form, equipment_id: form.equipment_id || null, date_returned: form.date_returned || null }
+    if (editId) await supabase.from('equipment_checkout').update(payload).eq('id', editId)
+    else await supabase.from('equipment_checkout').insert([payload])
     setSaving(false); setModalOpen(false); setForm(BLANK); load()
+  }
+
+  async function handleDelete() {
+    if (!editId) return
+    if (!window.confirm('Delete this checkout entry? This cannot be undone.')) return
+    await supabase.from('equipment_checkout').delete().eq('id', editId)
+    setModalOpen(false); load()
   }
 
   async function markReturned(r) {
@@ -59,7 +75,7 @@ export default function Checkout() {
           <input type="checkbox" style={{ width: 16 }} checked={showReturned} onChange={e => setShowReturned(e.target.checked)} /> Show returned items
         </label>
         <div className="spacer" />
-        <button className="btn btn-gold" onClick={() => { setForm(BLANK); setModalOpen(true) }}><Plus size={15} /> Check Out Equipment</button>
+        <button className="btn btn-gold" onClick={openAdd}><Plus size={15} /> Check Out Equipment</button>
       </div>
 
       {loading ? <p className="text-muted">Loading…</p> : visible.length === 0 ? (
@@ -71,7 +87,7 @@ export default function Checkout() {
               <thead><tr><th>Date Out</th><th>Borrower</th><th>Crew</th><th>Item</th><th>Reason</th><th>OK'd By</th><th>Returned</th><th></th></tr></thead>
               <tbody>
                 {visible.map(r => (
-                  <tr key={r.id}>
+                  <tr key={r.id} className="clickable" onClick={() => openEdit(r)}>
                     <td>{fmtDate(r.date_out)}</td>
                     <td className="cell-strong">{r.borrower}</td>
                     <td>{r.crew || '—'}</td>
@@ -85,7 +101,9 @@ export default function Checkout() {
                           : <span className="badge badge-progress">Out · {daysOut(r)}d</span>
                       )}
                     </td>
-                    <td>{!r.date_returned && <button className="btn btn-ghost btn-sm" onClick={() => markReturned(r)}><CheckCircle2 size={13} /> Returned</button>}</td>
+                    <td>{!r.date_returned && (
+                      <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); markReturned(r) }}><CheckCircle2 size={13} /> Returned</button>
+                    )}</td>
                   </tr>
                 ))}
               </tbody>
@@ -93,7 +111,7 @@ export default function Checkout() {
           </div>
           <div className="card-list show-mobile">
             {visible.map(r => (
-              <div className="row-card" key={r.id}>
+              <div className="row-card" key={r.id} onClick={() => openEdit(r)}>
                 <div className="row-card-top">
                   <b>{r.borrower}</b>
                   {r.date_returned ? <span className="badge badge-stocked">Returned</span> : (
@@ -105,7 +123,9 @@ export default function Checkout() {
                 <div className="row-card-line"><span>Item</span><b>{r.type} #{r.serial_last4 || '—'}</b></div>
                 <div className="row-card-line"><span>Date Out</span><b>{fmtDate(r.date_out)}</b></div>
                 <div className="row-card-line"><span>Reason</span><b>{r.reason || '—'}</b></div>
-                {!r.date_returned && <button className="btn btn-ghost btn-sm w-full mt-10" onClick={() => markReturned(r)}>Mark Returned</button>}
+                {!r.date_returned && (
+                  <button className="btn btn-ghost btn-sm w-full mt-10" onClick={(e) => { e.stopPropagation(); markReturned(r) }}>Mark Returned</button>
+                )}
               </div>
             ))}
           </div>
@@ -113,7 +133,7 @@ export default function Checkout() {
       )}
 
       {modalOpen && (
-        <Modal title="Check Out Equipment" onClose={() => setModalOpen(false)}>
+        <Modal title={editId ? 'Edit Checkout' : 'Check Out Equipment'} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSave}>
             <div className="field-row">
               <div className="field"><label>Date Out</label>
@@ -152,12 +172,21 @@ export default function Checkout() {
                 <input value={form.okd_by} onChange={e => setForm({ ...form, okd_by: e.target.value })} />
               </div>
             </div>
+            {editId && (
+              <div className="field"><label>Date Returned</label>
+                <input type="date" value={form.date_returned} onChange={e => setForm({ ...form, date_returned: e.target.value })} />
+                <p className="hint">Clear this to mark it as still checked out.</p>
+              </div>
+            )}
             <div className="field"><label>Notes</label>
               <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
             </div>
             <div className="flex justify-between gap-10 mt-16">
               <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Check Out'}</button>
+              <div className="flex gap-10">
+                {editId && <button type="button" className="btn btn-danger" onClick={handleDelete}><Trash2 size={14} /> Delete</button>}
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save Changes' : 'Check Out')}</button>
+              </div>
             </div>
           </form>
         </Modal>

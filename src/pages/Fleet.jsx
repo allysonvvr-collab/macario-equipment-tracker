@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Truck, Search } from 'lucide-react'
+import { Plus, Truck, Search, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
-import { money } from '../lib/helpers'
+import { money, costPerMile, expiryStatus } from '../lib/helpers'
 import { EquipmentStatusBadge, EmptyState } from '../components/Badges'
 import { Modal } from '../components/Modal'
 
-const BLANK = { nickname: '', year: '', make: '', model: '', crew_assigned: '', license_plate: '', vin: '', status: 'Active', notes: '' }
+const BLANK = {
+  nickname: '', year: '', make: '', model: '', crew_assigned: '', license_plate: '', vin: '',
+  status: 'Active', registration_expiry: '', insurance_expiry: '', next_service_mileage: '', notes: '',
+}
 
 export default function Fleet() {
   const navigate = useNavigate()
@@ -48,8 +51,20 @@ export default function Fleet() {
   async function handleSave(e) {
     e.preventDefault()
     setSaving(true)
-    await supabase.from('fleet_vehicles').insert([form])
+    await supabase.from('fleet_vehicles').insert([{
+      ...form,
+      registration_expiry: form.registration_expiry || null,
+      insurance_expiry: form.insurance_expiry || null,
+      next_service_mileage: form.next_service_mileage === '' ? null : Number(form.next_service_mileage),
+    }])
     setSaving(false); setModalOpen(false); load()
+  }
+
+  async function handleDelete(e, v) {
+    e.stopPropagation()
+    if (!window.confirm(`Delete ${v.year} ${v.make} ${v.model}? This removes its whole repair history too.`)) return
+    await supabase.from('fleet_vehicles').delete().eq('id', v.id)
+    load()
   }
 
   return (
@@ -68,48 +83,62 @@ export default function Fleet() {
       {loading ? <p className="text-muted">Loading…</p> : filtered.length === 0 ? (
         <EmptyState icon={<Truck size={36} />} title="No vehicles found" sub="Add a truck to start tracking its repairs." />
       ) : (
-        <>
-          <div className="table-wrap hide-mobile">
-            <table className="data-table">
-              <thead>
-                <tr><th>Vehicle</th><th>Crew</th><th>Mileage</th><th>Status</th><th>Repairs</th><th>Total Cost</th></tr>
-              </thead>
-              <tbody>
-                {filtered.map(v => {
-                  const t = totals[v.id] || { cost: 0, count: 0 }
-                  return (
-                    <tr key={v.id} className="clickable" onClick={() => navigate(`/fleet/${v.id}`)}>
-                      <td className="cell-strong">{v.year} {v.make} {v.model}<div className="text-xs text-muted">{v.nickname}</div></td>
-                      <td>{v.crew_assigned || '—'}</td>
-                      <td className="cell-muted">{v.current_mileage ? Number(v.current_mileage).toLocaleString() : '—'}</td>
-                      <td><EquipmentStatusBadge status={v.status} /></td>
-                      <td className="cell-muted">{t.count}</td>
-                      <td className="cell-strong">{money(t.cost)}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="card-list show-mobile">
-            {filtered.map(v => {
-              const t = totals[v.id] || { cost: 0, count: 0 }
-              return (
-                <div className="row-card" key={v.id} onClick={() => navigate(`/fleet/${v.id}`)}>
-                  <div className="row-card-top"><b>{v.year} {v.make} {v.model}</b><EquipmentStatusBadge status={v.status} /></div>
-                  <div className="row-card-line"><span>Crew</span><b>{v.crew_assigned || '—'}</b></div>
-                  <div className="row-card-line"><span>Mileage</span><b>{v.current_mileage ? Number(v.current_mileage).toLocaleString() : '—'}</b></div>
-                  <div className="row-card-line"><span>Total Cost</span><b>{money(t.cost)} ({t.count} repairs)</b></div>
+        <div className="vehicle-grid">
+          {filtered.map(v => {
+            const t = totals[v.id] || { cost: 0, count: 0 }
+            const cpm = costPerMile(t.cost, v.current_mileage)
+            const regStatus = expiryStatus(v.registration_expiry)
+            const insStatus = expiryStatus(v.insurance_expiry)
+            const serviceDue = v.next_service_mileage && v.current_mileage && Number(v.current_mileage) >= Number(v.next_service_mileage)
+            return (
+              <div className="vehicle-card" key={v.id} onClick={() => navigate(`/fleet/${v.id}`)}>
+                <button className="vehicle-card-delete" onClick={(e) => handleDelete(e, v)} title="Delete vehicle"><Trash2 size={13} /></button>
+                <div className="vehicle-card-top">
+                  <div className="vehicle-card-icon"><Truck size={20} /></div>
+                  <div>
+                    <div className="vehicle-card-title">{v.year} {v.make} {v.model}</div>
+                    <div className="vehicle-card-sub">{v.nickname}{v.crew_assigned ? ` · ${v.crew_assigned}` : ''}</div>
+                  </div>
                 </div>
-              )
-            })}
-          </div>
-        </>
+
+                <EquipmentStatusBadge status={v.status} />
+
+                <div className="vehicle-card-stats">
+                  <div className="vehicle-stat">
+                    <div className="vehicle-stat-label">Mileage</div>
+                    <div className="vehicle-stat-value">{v.current_mileage ? Number(v.current_mileage).toLocaleString() : '—'}</div>
+                  </div>
+                  <div className="vehicle-stat">
+                    <div className="vehicle-stat-label">Cost / Mile</div>
+                    <div className="vehicle-stat-value">{cpm !== null ? `$${cpm.toFixed(2)}` : '—'}</div>
+                  </div>
+                  <div className="vehicle-stat">
+                    <div className="vehicle-stat-label">Total Cost</div>
+                    <div className="vehicle-stat-value">{money(t.cost)}</div>
+                  </div>
+                  <div className="vehicle-stat">
+                    <div className="vehicle-stat-label">Repairs</div>
+                    <div className="vehicle-stat-value">{t.count}</div>
+                  </div>
+                </div>
+
+                {(serviceDue || regStatus === 'expired' || regStatus === 'soon' || insStatus === 'expired' || insStatus === 'soon') && (
+                  <div className="vehicle-card-flags">
+                    {serviceDue && <span className="badge badge-low">Service Due</span>}
+                    {regStatus === 'expired' && <span className="badge badge-out">Reg. Expired</span>}
+                    {regStatus === 'soon' && <span className="badge badge-low">Reg. Expiring</span>}
+                    {insStatus === 'expired' && <span className="badge badge-out">Insurance Expired</span>}
+                    {insStatus === 'soon' && <span className="badge badge-low">Insurance Expiring</span>}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
 
       {modalOpen && (
-        <Modal title="Add Vehicle" onClose={() => setModalOpen(false)}>
+        <Modal title="Add Vehicle" onClose={() => setModalOpen(false)} width="560px">
           <form onSubmit={handleSave}>
             <div className="field"><label>Nickname</label>
               <input value={form.nickname} onChange={e => setForm({ ...form, nickname: e.target.value })} placeholder="e.g. FWC1 Truck" required />
@@ -142,6 +171,17 @@ export default function Fleet() {
               <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
                 {['Active', 'In Repair', 'Retired'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
+            </div>
+            <div className="field-row">
+              <div className="field"><label>Registration Expires</label>
+                <input type="date" value={form.registration_expiry} onChange={e => setForm({ ...form, registration_expiry: e.target.value })} />
+              </div>
+              <div className="field"><label>Insurance Expires</label>
+                <input type="date" value={form.insurance_expiry} onChange={e => setForm({ ...form, insurance_expiry: e.target.value })} />
+              </div>
+            </div>
+            <div className="field"><label>Next Service Due (mileage)</label>
+              <input type="number" min="0" value={form.next_service_mileage} onChange={e => setForm({ ...form, next_service_mileage: e.target.value })} placeholder="Optional — e.g. 185000" />
             </div>
             <div className="field"><label>Notes</label>
               <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />

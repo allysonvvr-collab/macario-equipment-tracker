@@ -103,3 +103,25 @@ export const MODULES = [
   { key: 'orders', label: 'Orders' },
   { key: 'fleet', label: 'Fleet' },
 ]
+
+// Days until a date (negative = already passed). Returns null if no date.
+export function daysUntil(dateStr) {
+  if (!dateStr) return null
+  const target = new Date(dateStr + 'T00:00:00')
+  return Math.ceil((target.getTime() - Date.now()) / 86400000)
+}
+
+// 'expired' | 'soon' (within 30 days) | 'ok' | null (no date set)
+export function expiryStatus(dateStr, warnDays = 30) {
+  const d = daysUntil(dateStr)
+  if (d === null) return null
+  if (d < 0) return 'expired'
+  if (d <= warnDays) return 'soon'
+  return 'ok'
+}
+
+export function costPerMile(totalCost, mileage) {
+  const m = Number(mileage || 0)
+  if (!m) return null
+  return totalCost / m
+}

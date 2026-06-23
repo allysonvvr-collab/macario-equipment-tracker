@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Save, Trash2, Wrench, Plus } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
-import { money, fmtDate, todayISO } from '../lib/helpers'
+import { money, fmtDate, todayISO, costPerMile, expiryStatus } from '../lib/helpers'
 import { EquipmentStatusBadge, EmptyState } from '../components/Badges'
 import { Modal } from '../components/Modal'
 import { useAuth } from '../context/AuthContext'
@@ -37,7 +37,11 @@ export default function FleetVehicleDetail() {
     await supabase.from('fleet_vehicles').update({
       nickname: form.nickname, year: form.year, make: form.make, model: form.model,
       crew_assigned: form.crew_assigned, license_plate: form.license_plate, vin: form.vin,
-      status: form.status, notes: form.notes, updated_at: new Date().toISOString(),
+      status: form.status, notes: form.notes,
+      registration_expiry: form.registration_expiry || null,
+      insurance_expiry: form.insurance_expiry || null,
+      next_service_mileage: form.next_service_mileage === '' ? null : Number(form.next_service_mileage),
+      updated_at: new Date().toISOString(),
     }).eq('id', id)
     setSaving(false); setEditing(false); load()
   }
@@ -46,6 +50,13 @@ export default function FleetVehicleDetail() {
     if (!window.confirm('Delete this vehicle? This cannot be undone.')) return
     await supabase.from('fleet_vehicles').delete().eq('id', id)
     navigate('/fleet')
+  }
+
+  async function handleDeleteRepair(repairId) {
+    if (!window.confirm('Delete this repair entry? This cannot be undone.')) return
+    await supabase.from('fleet_repairs').delete().eq('id', repairId)
+    setRepairModalOpen(false)
+    load()
   }
 
   function openAddRepair() { setRepairForm({ ...BLANK_REPAIR, mileage: vehicle?.current_mileage ?? '' }); setEditRepairId(null); setRepairModalOpen(true) }
@@ -83,6 +94,11 @@ export default function FleetVehicleDetail() {
   if (!vehicle) return <p className="text-muted">Loading…</p>
 
   const totalCost = repairs.reduce((s, r) => s + Number(r.amount || 0), 0)
+  const cpm = costPerMile(totalCost, vehicle.current_mileage)
+  const regStatus = expiryStatus(vehicle.registration_expiry)
+  const insStatus = expiryStatus(vehicle.insurance_expiry)
+  const serviceDue = vehicle.next_service_mileage && vehicle.current_mileage
+    && Number(vehicle.current_mileage) >= Number(vehicle.next_service_mileage)
 
   return (
     <div>
@@ -105,12 +121,22 @@ export default function FleetVehicleDetail() {
           )}
         </div>
 
+        {(serviceDue || regStatus === 'expired' || regStatus === 'soon' || insStatus === 'expired' || insStatus === 'soon') && !editing && (
+          <div className="vehicle-card-flags mb-16">
+            {serviceDue && <span className="badge badge-low">Service Due — over {Number(vehicle.next_service_mileage).toLocaleString()} mi</span>}
+            {regStatus === 'expired' && <span className="badge badge-out">Registration Expired</span>}
+            {regStatus === 'soon' && <span className="badge badge-low">Registration Expiring ({fmtDate(vehicle.registration_expiry)})</span>}
+            {insStatus === 'expired' && <span className="badge badge-out">Insurance Expired</span>}
+            {insStatus === 'soon' && <span className="badge badge-low">Insurance Expiring ({fmtDate(vehicle.insurance_expiry)})</span>}
+          </div>
+        )}
+
         {!editing ? (
           <div className="kpi-grid" style={{ marginBottom: 0 }}>
             <div className="kpi-card"><div className="kpi-label">Crew</div><div className="kpi-value" style={{ fontSize: '1.1rem' }}>{vehicle.crew_assigned || '—'}</div></div>
             <div className="kpi-card"><div className="kpi-label">Current Mileage</div><div className="kpi-value" style={{ fontSize: '1.3rem' }}>{vehicle.current_mileage ? Number(vehicle.current_mileage).toLocaleString() : '—'}</div></div>
             <div className="kpi-card"><div className="kpi-label">Total Repair Cost</div><div className="kpi-value">{money(totalCost)}</div></div>
-            <div className="kpi-card"><div className="kpi-label">Repairs Logged</div><div className="kpi-value">{repairs.length}</div></div>
+            <div className="kpi-card"><div className="kpi-label">Cost / Mile</div><div className="kpi-value" style={{ fontSize: '1.3rem' }}>{cpm !== null ? `$${cpm.toFixed(2)}` : '—'}</div></div>
           </div>
         ) : (
           <form onSubmit={handleSave}>
@@ -145,6 +171,17 @@ export default function FleetVehicleDetail() {
               <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
                 {['Active', 'In Repair', 'Retired'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
+            </div>
+            <div className="field-row">
+              <div className="field"><label>Registration Expires</label>
+                <input type="date" value={form.registration_expiry || ''} onChange={e => setForm({ ...form, registration_expiry: e.target.value })} />
+              </div>
+              <div className="field"><label>Insurance Expires</label>
+                <input type="date" value={form.insurance_expiry || ''} onChange={e => setForm({ ...form, insurance_expiry: e.target.value })} />
+              </div>
+            </div>
+            <div className="field"><label>Next Service Due (mileage)</label>
+              <input type="number" min="0" value={form.next_service_mileage ?? ''} onChange={e => setForm({ ...form, next_service_mileage: e.target.value })} placeholder="Optional — e.g. 185000" />
             </div>
             <div className="field"><label>Notes</label>
               <textarea value={form.notes || ''} onChange={e => setForm({ ...form, notes: e.target.value })} />
@@ -233,7 +270,12 @@ export default function FleetVehicleDetail() {
             </div>
             <div className="flex justify-between gap-10 mt-16">
               <button type="button" className="btn btn-ghost" onClick={() => setRepairModalOpen(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editRepairId ? 'Save Changes' : 'Log Repair')}</button>
+              <div className="flex gap-10">
+                {editRepairId && (
+                  <button type="button" className="btn btn-danger" onClick={() => handleDeleteRepair(editRepairId)}><Trash2 size={14} /> Delete</button>
+                )}
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editRepairId ? 'Save Changes' : 'Log Repair')}</button>
+              </div>
             </div>
           </form>
         </Modal>

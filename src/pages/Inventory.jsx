@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Package, History, Search } from 'lucide-react'
+import { Plus, Package, History, Search, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { fmtDate, money, partStatus } from '../lib/helpers'
 import { PartStatusBadge, EmptyState } from '../components/Badges'
@@ -18,6 +18,7 @@ export default function Inventory() {
   const [division, setDivision] = useState('All')
   const [search, setSearch] = useState('')
   const [addOpen, setAddOpen] = useState(false)
+  const [editId, setEditId] = useState(null)
   const [form, setForm] = useState(BLANK)
   const [saving, setSaving] = useState(false)
   const [countModal, setCountModal] = useState(null) // part being recounted
@@ -59,16 +60,40 @@ export default function Inventory() {
       return r !== 0 ? r : a.part_name.localeCompare(b.part_name)
     })
 
-  async function handleAdd(e) {
+  function openAdd() { setForm({ ...BLANK, division: division === 'All' ? 'Mowing' : division }); setEditId(null); setAddOpen(true) }
+  function openEdit(p) {
+    setForm({
+      part_name: p.part_name, part_number: p.part_number || '', division: p.division,
+      for_equipment_type: p.for_equipment_type || '', fits: p.fits || '', unit: p.unit || '',
+      vendor: p.vendor || '', price: p.price ?? '', on_hand: String(p.on_hand ?? 0),
+      reorder_point: String(p.reorder_point ?? 0), reorder_qty: p.reorder_qty ?? '', notes: p.notes || '',
+    })
+    setEditId(p.id); setAddOpen(true)
+  }
+
+  async function handleSave(e) {
     e.preventDefault()
     setSaving(true)
-    await supabase.from('parts_catalog').insert([{
+    const payload = {
       ...form, price: form.price === '' ? null : Number(form.price),
       on_hand: Number(form.on_hand || 0), reorder_point: Number(form.reorder_point || 0),
       reorder_qty: form.reorder_qty === '' ? null : Number(form.reorder_qty),
-      last_counted_at: new Date().toISOString(), last_counted_by: user?.name || null,
-    }])
+    }
+    if (editId) {
+      await supabase.from('parts_catalog').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', editId)
+    } else {
+      await supabase.from('parts_catalog').insert([{
+        ...payload, last_counted_at: new Date().toISOString(), last_counted_by: user?.name || null,
+      }])
+    }
     setSaving(false); setAddOpen(false); setForm(BLANK); load()
+  }
+
+  async function handleRemove() {
+    if (!editId) return
+    if (!window.confirm('Remove this part from the active list? Its count history is kept — this just hides it going forward.')) return
+    await supabase.from('parts_catalog').update({ active: false }).eq('id', editId)
+    setAddOpen(false); load()
   }
 
   function openCount(p) { setCountModal(p); setCountVal(String(p.on_hand ?? 0)) }
@@ -107,9 +132,7 @@ export default function Inventory() {
           <input type="text" placeholder="Search parts…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <div className="spacer" />
-        <button className="btn btn-gold" onClick={() => { setForm({ ...BLANK, division: division === 'All' ? 'Mowing' : division }); setAddOpen(true) }}>
-          <Plus size={15} /> Add Part
-        </button>
+        <button className="btn btn-gold" onClick={openAdd}><Plus size={15} /> Add Part</button>
       </div>
 
       {loading ? <p className="text-muted">Loading…</p> : filtered.length === 0 ? (
@@ -135,6 +158,7 @@ export default function Inventory() {
                     <td>
                       <div className="flex gap-6">
                         <button className="btn btn-ghost btn-sm" onClick={() => openCount(p)}>Update Count</button>
+                        <button className="icon-btn" onClick={() => openEdit(p)} title="Edit part"><Pencil size={14} /></button>
                         <button className="icon-btn" onClick={() => openHistory(p)} title="History"><History size={14} /></button>
                       </div>
                     </td>
@@ -153,6 +177,7 @@ export default function Inventory() {
                 <div className="row-card-line"><span>Vendor</span><b>{p.vendor || '—'}</b></div>
                 <div className="flex gap-6 mt-10">
                   <button className="btn btn-ghost btn-sm w-full" onClick={() => openCount(p)}>Update Count</button>
+                  <button className="icon-btn" onClick={() => openEdit(p)}><Pencil size={14} /></button>
                   <button className="icon-btn" onClick={() => openHistory(p)}><History size={14} /></button>
                 </div>
               </div>
@@ -162,8 +187,8 @@ export default function Inventory() {
       )}
 
       {addOpen && (
-        <Modal title="Add Part" onClose={() => setAddOpen(false)}>
-          <form onSubmit={handleAdd}>
+        <Modal title={editId ? 'Edit Part' : 'Add Part'} onClose={() => setAddOpen(false)}>
+          <form onSubmit={handleSave}>
             <div className="field"><label>Part Name</label>
               <input value={form.part_name} onChange={e => setForm({ ...form, part_name: e.target.value })} required />
             </div>
@@ -210,7 +235,10 @@ export default function Inventory() {
             </div>
             <div className="flex justify-between gap-10 mt-16">
               <button type="button" className="btn btn-ghost" onClick={() => setAddOpen(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Part'}</button>
+              <div className="flex gap-10">
+                {editId && <button type="button" className="btn btn-danger" onClick={handleRemove}><Trash2 size={14} /> Remove</button>}
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save Changes' : 'Save Part')}</button>
+              </div>
             </div>
           </form>
         </Modal>

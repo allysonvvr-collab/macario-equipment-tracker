@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Droplets, TrendingUp } from 'lucide-react'
+import { Plus, Droplets, TrendingUp, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { fmtDate, fmtDateShort, todayISO, ceilingTo1000, suggestedGallons, fwcVariance } from '../lib/helpers'
 import { FwcVarianceBadge, EmptyState } from '../components/Badges'
@@ -57,6 +57,13 @@ export default function FwcTracker() {
     if (editId) await supabase.from('fwc_applications').update(payload).eq('id', editId)
     else await supabase.from('fwc_applications').insert([payload])
     setSaving(false); setModalOpen(false); load()
+  }
+
+  async function handleDelete() {
+    if (!editId) return
+    if (!window.confirm('Delete this application entry? This cannot be undone.')) return
+    await supabase.from('fwc_applications').delete().eq('id', editId)
+    setModalOpen(false); load()
   }
 
   // Month-to-date summary
@@ -194,7 +201,10 @@ export default function FwcTracker() {
             </div>
             <div className="flex justify-between gap-10 mt-16">
               <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save Changes' : 'Log Application')}</button>
+              <div className="flex gap-10">
+                {editId && <button type="button" className="btn btn-danger" onClick={handleDelete}><Trash2 size={14} /> Delete</button>}
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save Changes' : 'Log Application')}</button>
+              </div>
             </div>
           </form>
         </Modal>

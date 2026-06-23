@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, Search, Wrench } from 'lucide-react'
+import { Plus, Search, Wrench, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { money, fmtDate, todayISO, calcRepairTotal, calcLaborCost, REPAIR_TYPES } from '../lib/helpers'
 import { RepairStatusBadge, EmptyState } from '../components/Badges'
@@ -111,6 +111,13 @@ export default function RepairLog() {
       }
     }
     setSaving(false); setModalOpen(false); load()
+  }
+
+  async function handleDelete() {
+    if (!editId) return
+    if (!window.confirm('Delete this repair entry? This cannot be undone.')) return
+    await supabase.from('repair_log').delete().eq('id', editId)
+    setModalOpen(false); load()
   }
 
   return (
@@ -276,7 +283,10 @@ export default function RepairLog() {
 
             <div className="flex justify-between gap-10 mt-16">
               <button type="button" className="btn btn-ghost" onClick={() => setModalOpen(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save Changes' : 'Log Repair')}</button>
+              <div className="flex gap-10">
+                {editId && <button type="button" className="btn btn-danger" onClick={handleDelete}><Trash2 size={14} /> Delete</button>}
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : (editId ? 'Save Changes' : 'Log Repair')}</button>
+              </div>
             </div>
           </form>
         </Modal>
